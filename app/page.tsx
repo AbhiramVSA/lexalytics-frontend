@@ -341,7 +341,6 @@ export default function MCADashboard() {
           <nav className="space-y-2">
             {[
               { id: "dashboard", icon: BarChart3, label: "DASHBOARD" },
-              { id: "analytics", icon: FileText, label: "ANALYTICS" },
               { id: "upload", icon: Upload, label: "UPLOAD COMMENT" },
             ].map((item) => (
               <button
@@ -427,7 +426,7 @@ export default function MCADashboard() {
 
         {/* Dashboard Content */}
         <div className="flex-1 overflow-auto">
-          {(activeSection === "dashboard" || activeSection === "analytics") && renderDashboardContent()}
+          {activeSection === "dashboard" && renderDashboardContent()}
           {activeSection === "upload" && renderUploadPage()}
           {(activeSection === "profile" || activeSection === "settings") && renderProfilePage()}
         </div>

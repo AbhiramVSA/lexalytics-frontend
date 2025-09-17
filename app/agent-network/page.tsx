@@ -1,14 +1,30 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Filter, MoreHorizontal, MapPin, Clock, Shield } from "lucide-react"
+import { Search, Filter, MoreHorizontal, MapPin, Clock, Shield, RefreshCw } from "lucide-react"
+import SentimentHeatmap from "@/components/SentimentHeatmap"
+import { SentimentApiService } from "@/lib/sentiment-api"
+import { SentimentHeatmapData } from "@/types/sentiment"
+
+interface Agent {
+  id: string;
+  name: string;
+  status: string;
+  location: string;
+  lastSeen: string;
+  missions: number;
+  risk: string;
+}
 
 export default function AgentNetworkPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedAgent, setSelectedAgent] = useState(null)
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
+  const [sentimentData, setSentimentData] = useState<SentimentHeatmapData>({})
+  const [isLoadingSentiment, setIsLoadingSentiment] = useState(false)
+  const [sentimentError, setSentimentError] = useState<string | null>(null)
 
   const agents = [
     {
@@ -91,6 +107,28 @@ export default function AgentNetworkPage() {
       agent.id.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
+  // Load sentiment data on component mount
+  useEffect(() => {
+    loadSentimentData()
+  }, [])
+
+  const loadSentimentData = async () => {
+    setIsLoadingSentiment(true)
+    setSentimentError(null)
+    
+    try {
+      // For development, use mock data. Replace with real API call when backend is ready
+      // const data = await SentimentApiService.getSentimentData()
+      const data = SentimentApiService.getMockSentimentData()
+      setSentimentData(data)
+    } catch (error) {
+      setSentimentError(error instanceof Error ? error.message : 'Failed to load sentiment data')
+      console.error('Error loading sentiment data:', error)
+    } finally {
+      setIsLoadingSentiment(false)
+    }
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -159,6 +197,44 @@ export default function AgentNetworkPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Sentiment Heatmap */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-bold text-white tracking-wider">GLOBAL SENTIMENT ANALYSIS</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadSentimentData}
+            disabled={isLoadingSentiment}
+            className="border-neutral-700 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-300 bg-transparent"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingSentiment ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+        
+        {sentimentError ? (
+          <Card className="bg-neutral-900 border-neutral-700">
+            <CardContent className="p-6 text-center">
+              <p className="text-red-400 mb-2">Failed to load sentiment data</p>
+              <p className="text-neutral-500 text-sm">{sentimentError}</p>
+              <Button 
+                onClick={loadSentimentData}
+                className="mt-3 bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <SentimentHeatmap 
+            data={sentimentData}
+            title="REGIONAL SENTIMENT OVERVIEW"
+            className={isLoadingSentiment ? 'opacity-50' : ''}
+          />
+        )}
       </div>
 
       {/* Agent List */}
