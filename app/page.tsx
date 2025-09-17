@@ -42,6 +42,11 @@ export default function MCADashboard() {
   const [activeSection, setActiveSection] = useState("dashboard")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [selectedDraft, setSelectedDraft] = useState<string | null>(null)
+  // NEW: frontend-only settings state
+  const [username, setUsername] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [settingsAlert, setSettingsAlert] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   const renderDashboardContent = () => {
     if (selectedDraft) {
@@ -178,7 +183,9 @@ export default function MCADashboard() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-neutral-500">Comments:</span>
-                    <span className="text-orange-500 font-mono">{draft.commentsCount.toLocaleString()}</span>
+                    <span className="text-orange-500 font-mono">
+                      {draft.commentsCount.toLocaleString()}
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -253,72 +260,130 @@ export default function MCADashboard() {
   const renderProfilePage = () => (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-orange-500 mb-2">My Profile</h2>
-        <p className="text-neutral-400">Manage your comments and account settings</p>
+        <h2 className="text-2xl font-bold text-orange-500 mb-2">My Comments</h2>
+        <p className="text-neutral-400">Your submitted comments across all drafts</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="bg-neutral-900 border-neutral-700 lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-orange-500">My Comments</CardTitle>
-            <CardDescription>Your submitted comments across all drafts</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="p-4 bg-neutral-800 rounded border border-neutral-600">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-sm text-orange-500">Companies Act Amendment Bill 2024</span>
-                  <span className="text-xs text-neutral-500">2024-03-14</span>
-                </div>
-                <p className="text-sm text-neutral-300">
-                  The proposed changes to Section 12 require careful consideration...
-                </p>
+      <Card className="bg-neutral-900 border-neutral-700">
+        <CardHeader>
+          <CardTitle className="text-orange-500">Recent Comments</CardTitle>
+          <CardDescription>Latest activity</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="p-4 bg-neutral-800 rounded border border-neutral-600">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-sm text-orange-500">Companies Act Amendment Bill 2024</span>
+                <span className="text-xs text-neutral-500">2024-03-14</span>
               </div>
-              <div className="p-4 bg-neutral-800 rounded border border-neutral-600">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-sm text-orange-500">CSR Guidelines</span>
-                  <span className="text-xs text-neutral-500">2024-03-12</span>
-                </div>
-                <p className="text-sm text-neutral-300">
-                  Implementation timeline should be extended for better compliance...
-                </p>
-              </div>
+              <p className="text-sm text-neutral-300">
+                The proposed changes to Section 12 require careful consideration...
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="p-4 bg-neutral-800 rounded border border-neutral-600">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-sm text-orange-500">CSR Guidelines</span>
+                <span className="text-xs text-neutral-500">2024-03-12</span>
+              </div>
+              <p className="text-sm text-neutral-300">
+                Implementation timeline should be extended for better compliance...
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  const renderSettingsPage = () => {
+    const handleSave = (e: React.FormEvent) => {
+      e.preventDefault()
+      if (newPassword && newPassword !== confirmPassword) {
+        setSettingsAlert({ type: "error", text: "New password and confirmation do not match." })
+        return
+      }
+      setSettingsAlert({ type: "success", text: "Settings updated (frontend only, not persisted)." })
+      // Simulate clear of password fields after "save"
+      setNewPassword("")
+      setConfirmPassword("")
+    }
+
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-orange-500 mb-2">Settings</h2>
+          <p className="text-neutral-400">Update your account details (frontend only)</p>
+        </div>
 
         <Card className="bg-neutral-900 border-neutral-700">
           <CardHeader>
-            <CardTitle className="text-orange-500">Settings</CardTitle>
-            <CardDescription>Account preferences</CardDescription>
+            <CardTitle className="text-orange-500">Account</CardTitle>
+            <CardDescription>Change username and password</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">Email Notifications</label>
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" className="rounded" />
-                <span className="text-sm text-neutral-400">New draft alerts</span>
+          <CardContent>
+            <form className="space-y-4" onSubmit={handleSave}>
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Username</label>
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter new username"
+                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
+                />
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">Language</label>
-              <select className="w-full p-2 bg-neutral-800 border border-neutral-600 rounded text-white text-sm">
-                <option>English</option>
-                <option>Hindi</option>
-              </select>
-            </div>
-            <Button className="w-full bg-orange-500 hover:bg-orange-600 text-black">Save Settings</Button>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">New Password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter new password"
+                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
+                />
+              </div>
+
+              {settingsAlert && (
+                <div
+                  className={`text-sm p-3 rounded border ${settingsAlert.type === "success"
+                      ? "bg-green-900/30 border-green-600 text-green-300"
+                      : "bg-red-900/30 border-red-600 text-red-300"
+                    }`}
+                >
+                  {settingsAlert.text}
+                </div>
+              )}
+
+              <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-black">
+                Save Settings
+              </Button>
+              <p className="text-xs text-neutral-500 text-center mt-2">
+                Note: This is a client-side demo only. Changes are not persisted.
+              </p>
+            </form>
           </CardContent>
         </Card>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div className="flex h-screen">
       {/* Sidebar */}
       <div
-        className={`${sidebarCollapsed ? "w-16" : "w-70"} bg-neutral-900 border-r border-neutral-700 transition-all duration-300 fixed md:relative z-50 md:z-auto h-full md:h-auto ${!sidebarCollapsed ? "md:block" : ""}`}
+        className={`${sidebarCollapsed ? "w-16" : "w-70"} bg-neutral-900 border-r border-neutral-700 transition-all duration-300 fixed md:relative z-50 md:z-auto h-full md:h-auto ${!sidebarCollapsed ? "md:block" : ""
+          }`}
       >
         <div className="p-4">
           <div className="flex items-center justify-between mb-8">
@@ -333,7 +398,8 @@ export default function MCADashboard() {
               className="text-neutral-400 hover:text-orange-500"
             >
               <ChevronRight
-                className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${sidebarCollapsed ? "" : "rotate-180"}`}
+                className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${sidebarCollapsed ? "" : "rotate-180"
+                  }`}
               />
             </Button>
           </div>
@@ -346,11 +412,10 @@ export default function MCADashboard() {
               <button
                 key={item.id}
                 onClick={() => setActiveSection(item.id)}
-                className={`w-full flex items-center gap-3 p-3 rounded transition-colors ${
-                  activeSection === item.id
+                className={`w-full flex items-center gap-3 p-3 rounded transition-colors ${activeSection === item.id
                     ? "bg-orange-500 text-white"
                     : "text-neutral-400 hover:text-white hover:bg-neutral-800"
-                }`}
+                  }`}
               >
                 <item.icon className="w-5 h-5 md:w-5 md:h-5 sm:w-6 sm:h-6" />
                 {!sidebarCollapsed && <span className="text-sm font-medium">{item.label}</span>}
@@ -367,11 +432,10 @@ export default function MCADashboard() {
                   <button
                     key={item.id}
                     onClick={() => setActiveSection(item.id)}
-                    className={`w-full flex items-center gap-3 p-3 rounded transition-colors ${
-                      activeSection === item.id
+                    className={`w-full flex items-center gap-3 p-3 rounded transition-colors ${activeSection === item.id
                         ? "bg-orange-500 text-white"
                         : "text-neutral-400 hover:text-white hover:bg-neutral-800"
-                    }`}
+                      }`}
                   >
                     <item.icon className="w-5 h-5" />
                     <span className="text-sm font-medium">{item.label}</span>
@@ -399,7 +463,10 @@ export default function MCADashboard() {
 
       {/* Mobile Overlay */}
       {!sidebarCollapsed && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarCollapsed(true)} />
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setSidebarCollapsed(true)}
+        />
       )}
 
       {/* Main Content */}
@@ -408,7 +475,8 @@ export default function MCADashboard() {
         <div className="h-16 bg-neutral-800 border-b border-neutral-700 flex items-center justify-between px-6">
           <div className="flex items-center gap-4">
             <div className="text-sm text-neutral-400">
-              MCA eCONSULTATION / <span className="text-orange-500">{activeSection.toUpperCase()}</span>
+              MCA eCONSULTATION /{" "}
+              <span className="text-orange-500">{activeSection.toUpperCase()}</span>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -428,7 +496,8 @@ export default function MCADashboard() {
         <div className="flex-1 overflow-auto">
           {activeSection === "dashboard" && renderDashboardContent()}
           {activeSection === "upload" && renderUploadPage()}
-          {(activeSection === "profile" || activeSection === "settings") && renderProfilePage()}
+          {activeSection === "profile" && renderProfilePage()}
+          {activeSection === "settings" && renderSettingsPage()}
         </div>
       </div>
     </div>
