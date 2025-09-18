@@ -58,4 +58,3 @@ export function logout(): void {
         // no-op
     }
 }
-

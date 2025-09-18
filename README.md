@@ -24,7 +24,7 @@ A Next.js 14 frontend for a sentiment analysis and public consultation dashboard
 
 ## Monorepo/Folder Structure
 
-```
+\`\`\`
 app/
   login/             # Login page
   signup/            # Signup page
@@ -34,7 +34,7 @@ lib/                 # Client helpers (auth, API)
 public/              # Static assets
 styles/              # Global styles
 types/               # Shared types
-```
+\`\`\`
 
 ## Getting Started
 
@@ -44,15 +44,15 @@ types/               # Shared types
 
 2. Install dependencies
 
-```bash
+\`\`\`bash
 pnpm install
-```
+\`\`\`
 
 3. Configure environment
 
 Create `.env.local` at the project root:
 
-```bash
+\`\`\`bash
 # Base URL for your backend API (auth, drafts, comments, etc.)
 NEXT_PUBLIC_API_BASE_URL=http://52.201.231.42
 
@@ -64,22 +64,22 @@ NEXT_PUBLIC_API_BASE_URL=http://52.201.231.42
 # NEXT_PUBLIC_ENABLE_DEMO_AUTH=true
 # NEXT_PUBLIC_DEMO_EMAIL=demo@example.com
 # NEXT_PUBLIC_DEMO_PASSWORD=demo1234
-```
+\`\`\`
 
 4. Run the dev server
 
-```bash
+\`\`\`bash
 pnpm dev
-```
+\`\`\`
 
 Open http://localhost:3000. You’ll be redirected to `/login` until authenticated.
 
 5. Production build
 
-```bash
+\`\`\`bash
 pnpm build
 pnpm start
-```
+\`\`\`
 
 ## Authentication
 
