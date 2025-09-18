@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronRight, BarChart3, Upload, FileText, User, Settings, Bell, RefreshCw } from "lucide-react"
+import { ChevronRight, BarChart3, Upload, FileText, User, Settings, Bell, RefreshCw, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +14,8 @@ const mockDrafts = [
     uploadDate: "2024-03-15",
     status: "Active",
     commentsCount: 1247,
+    summary:
+      "Proposes targeted amendments to streamline corporate compliance, modernize reporting requirements, and enhance transparency for publicly listed entities while reducing administrative overhead for MSMEs.",
   },
   {
     id: "DRAFT-2024-002",
@@ -21,6 +23,8 @@ const mockDrafts = [
     uploadDate: "2024-03-10",
     status: "Active",
     commentsCount: 892,
+    summary:
+      "Updates CSR spending norms, clarifies eligible activities, and introduces improved disclosure formats to better align corporate impact reporting with measurable social outcomes.",
   },
   {
     id: "DRAFT-2024-003",
@@ -28,6 +32,8 @@ const mockDrafts = [
     uploadDate: "2024-03-05",
     status: "Closed",
     commentsCount: 2156,
+    summary:
+      "Establishes principles and standards for secure, interoperable, and citizen-centric digital services, emphasizing data protection, auditability, and open APIs across government platforms.",
   },
   {
     id: "DRAFT-2024-004",
@@ -35,6 +41,8 @@ const mockDrafts = [
     uploadDate: "2024-02-28",
     status: "Active",
     commentsCount: 634,
+    summary:
+      "Aims to simplify regulatory touchpoints for startups, expand access to early-stage capital, and streamline IP facilitation, with a focus on deep tech and high-employment sectors.",
   },
 ]
 
@@ -47,6 +55,13 @@ export default function MCADashboard() {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [settingsAlert, setSettingsAlert] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [bulkDraftId, setBulkDraftId] = useState<string>("")
+  const handleLogout = () => {
+    try {
+      document.cookie = 'authToken=; path=/; max-age=0'
+    } catch { }
+    window.location.href = '/login'
+  }
 
   const renderDashboardContent = () => {
     if (selectedDraft) {
@@ -64,6 +79,18 @@ export default function MCADashboard() {
 
           {/* Draft Analytics Dashboard */}
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {/* Summary of the Draft */}
+            <Card className="bg-neutral-900 border-neutral-700 lg:col-span-2 xl:col-span-3">
+              <CardHeader>
+                <CardTitle className="text-orange-500">Summary of the Draft</CardTitle>
+                <CardDescription>High-level overview</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-neutral-300 leading-relaxed">
+                  {draft?.summary || "No summary available for this draft."}
+                </p>
+              </CardContent>
+            </Card>
             {/* Sentiment Summary */}
             <Card className="bg-neutral-900 border-neutral-700">
               <CardHeader>
@@ -241,6 +268,21 @@ export default function MCADashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">Draft Selection</label>
+              <select
+                className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
+                value={bulkDraftId}
+                onChange={(e) => setBulkDraftId(e.target.value)}
+              >
+                <option value="">Select a draft...</option>
+                {mockDrafts.map((draft) => (
+                  <option key={draft.id} value={draft.id}>
+                    {draft.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-neutral-300 mb-2">CSV File</label>
               <div className="border-2 border-dashed border-neutral-600 rounded-lg p-8 text-center hover:border-orange-500 transition-colors">
                 <Upload className="w-12 h-12 text-neutral-500 mx-auto mb-4" />
@@ -250,7 +292,13 @@ export default function MCADashboard() {
                 </p>
               </div>
             </div>
-            <Button className="w-full bg-orange-500 hover:bg-orange-600 text-black">Upload CSV</Button>
+            <Button
+              className="w-full bg-orange-500 hover:bg-orange-600 text-black disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!bulkDraftId}
+              title={!bulkDraftId ? "Select a draft first" : undefined}
+            >
+              Upload CSV
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -357,8 +405,8 @@ export default function MCADashboard() {
               {settingsAlert && (
                 <div
                   className={`text-sm p-3 rounded border ${settingsAlert.type === "success"
-                      ? "bg-green-900/30 border-green-600 text-green-300"
-                      : "bg-red-900/30 border-red-600 text-red-300"
+                    ? "bg-green-900/30 border-green-600 text-green-300"
+                    : "bg-red-900/30 border-red-600 text-red-300"
                     }`}
                 >
                   {settingsAlert.text}
@@ -413,8 +461,8 @@ export default function MCADashboard() {
                 key={item.id}
                 onClick={() => setActiveSection(item.id)}
                 className={`w-full flex items-center gap-3 p-3 rounded transition-colors ${activeSection === item.id
-                    ? "bg-orange-500 text-white"
-                    : "text-neutral-400 hover:text-white hover:bg-neutral-800"
+                  ? "bg-orange-500 text-white"
+                  : "text-neutral-400 hover:text-white hover:bg-neutral-800"
                   }`}
               >
                 <item.icon className="w-5 h-5 md:w-5 md:h-5 sm:w-6 sm:h-6" />
@@ -433,8 +481,8 @@ export default function MCADashboard() {
                     key={item.id}
                     onClick={() => setActiveSection(item.id)}
                     className={`w-full flex items-center gap-3 p-3 rounded transition-colors ${activeSection === item.id
-                        ? "bg-orange-500 text-white"
-                        : "text-neutral-400 hover:text-white hover:bg-neutral-800"
+                      ? "bg-orange-500 text-white"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-800"
                       }`}
                   >
                     <item.icon className="w-5 h-5" />
@@ -488,6 +536,9 @@ export default function MCADashboard() {
             </Button>
             <Button variant="ghost" size="icon" className="text-neutral-400 hover:text-orange-500">
               <RefreshCw className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-neutral-400 hover:text-orange-500">
+              <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>
