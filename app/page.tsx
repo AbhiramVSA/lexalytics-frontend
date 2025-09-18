@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { uploadDraft } from "@/lib/drafts"
 import { getToken, setToken, clearToken as clearStoredToken } from "@/lib/token"
-import { clearToken } from "@/lib/token"
 
 // Initial data for drafts
 const initialDrafts = [
@@ -57,6 +56,7 @@ export default function MCADashboard() {
   const [newDraftError, setNewDraftError] = useState<string | null>(null)
   const [newDraftLoading, setNewDraftLoading] = useState(false)
   const [isAuthed, setIsAuthed] = useState<boolean>(false)
+  const [tokenInput, setTokenInput] = useState("")
   useEffect(() => {
     setIsAuthed(!!getToken())
   }, [])
@@ -65,6 +65,26 @@ export default function MCADashboard() {
     clearStoredToken()
     window.location.href = '/login'
   }
+
+  const handleTokenSave = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!tokenInput.trim()) {
+      setSettingsAlert({ type: 'error', text: 'Please enter a bearer token.' })
+      return
+    }
+    setToken(tokenInput.trim())
+    setIsAuthed(true)
+    setSettingsAlert({ type: 'success', text: 'Token saved successfully.' })
+    setTokenInput("")
+  }
+
+  const handleTokenClear = () => {
+    clearStoredToken()
+    setIsAuthed(false)
+    setSettingsAlert({ type: 'success', text: 'Token cleared.' })
+  }
+
+
 
   const renderDashboardContent = () => {
     if (selectedDraft) {
@@ -381,8 +401,8 @@ export default function MCADashboard() {
       } catch (err: any) {
         const raw = (err?.message || 'Failed to upload draft') as string
         const lower = raw.toLowerCase()
-        if (lower.includes('unauthorized') || lower.includes('invalid authentication') || lower.includes('401')) {
-          setNewDraftError('Not authenticated. Please log in again, then retry the upload.')
+        if (lower.includes('unauthorized') || lower.includes('invalid authentication') || lower.includes('401') || lower.includes('not authenticated')) {
+          setNewDraftError('Authentication required. Please set your bearer token in Settings → Authentication section before uploading.')
         } else {
           setNewDraftError(raw)
         }
@@ -420,8 +440,66 @@ export default function MCADashboard() {
                 )}
               </div>
 
+              {/* Authentication Status */}
+              <div className={`p-3 rounded border ${isAuthed ? 'bg-green-900/30 border-green-600' : 'bg-red-900/30 border-red-600'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${isAuthed ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                    <span className={`text-sm font-medium ${isAuthed ? 'text-green-400' : 'text-red-400'}`}>
+                      {isAuthed ? 'Authenticated' : 'Not Authenticated'}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        const token = getToken()
+                        console.log('Current token:', token)
+                        
+                        if (token) {
+                          try {
+                            // Decode JWT to check expiration
+                            const parts = token.split('.')
+                            const payload = JSON.parse(atob(parts[1]))
+                            const exp = payload.exp
+                            const now = Math.floor(Date.now() / 1000)
+                            const isExpired = exp < now
+                            
+                            alert(`Token: Present\nExpires: ${new Date(exp * 1000).toLocaleString()}\nExpired: ${isExpired ? 'Yes' : 'No'}`)
+                          } catch (e) {
+                            alert(`Token: Present but invalid format`)
+                          }
+                        } else {
+                          alert('Token: Missing')
+                        }
+                      }}
+                      className="text-xs border-neutral-600 text-neutral-400 hover:bg-neutral-800"
+                    >
+                      Test Token
+                    </Button>
+                    {!isAuthed && (
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setActiveSection('settings')}
+                        className="text-xs border-red-600 text-red-400 hover:bg-red-900/30"
+                      >
+                        Set Token
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {!isAuthed && (
+                  <p className="text-xs text-red-300 mt-1">
+                    You need to set your bearer token in Settings before uploading files.
+                  </p>
+                )}
+              </div>
 
-              <Button type="submit" disabled={!newDraftFile || newDraftLoading} className="w-full bg-orange-500 hover:bg-orange-600 text-black disabled:opacity-50 disabled:cursor-not-allowed">{newDraftLoading ? 'Uploading…' : 'Add Draft'}</Button>
+              <Button type="submit" disabled={!newDraftFile || newDraftLoading || !isAuthed} className="w-full bg-orange-500 hover:bg-orange-600 text-black disabled:opacity-50 disabled:cursor-not-allowed">{newDraftLoading ? 'Uploading…' : 'Add Draft'}</Button>
             </form>
           </CardContent>
         </Card>
@@ -430,8 +508,6 @@ export default function MCADashboard() {
   }
 
   const renderSettingsPage = () => {
-    const [tokenInput, setTokenInput] = useState("")
-
     const handleSave = (e: React.FormEvent) => {
       e.preventDefault()
       if (newPassword && newPassword !== confirmPassword) {
@@ -442,24 +518,6 @@ export default function MCADashboard() {
       // Simulate clear of password fields after "save"
       setNewPassword("")
       setConfirmPassword("")
-    }
-
-    const handleTokenSave = (e: React.FormEvent) => {
-      e.preventDefault()
-      if (!tokenInput.trim()) {
-        setSettingsAlert({ type: 'error', text: 'Please paste a valid bearer token.' })
-        return
-      }
-      setToken(tokenInput.trim())
-      setIsAuthed(true)
-      setSettingsAlert({ type: 'success', text: 'Bearer token saved successfully.' })
-      setTokenInput("")
-    }
-
-    const handleTokenClear = () => {
-      clearStoredToken()
-      setIsAuthed(false)
-      setSettingsAlert({ type: 'success', text: 'Bearer token cleared. Please log in again.' })
     }
 
     return (
@@ -539,14 +597,16 @@ export default function MCADashboard() {
                 <input
                   value={tokenInput}
                   onChange={(e) => setTokenInput(e.target.value)}
-                  placeholder="eyJhbGciOiJI..."
+                  placeholder="Paste your bearer token here..."
                   className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
                 />
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <Button type="submit" className="bg-orange-500 hover:bg-orange-600 text-black">Save Token</Button>
                   <Button type="button" variant="secondary" onClick={handleTokenClear} className="bg-neutral-700 hover:bg-neutral-600">Clear Token</Button>
                 </div>
-                <p className="text-xs text-neutral-500">The upload endpoint will use Authorization: bearer &lt;token&gt;.</p>
+                <p className="text-xs text-neutral-500">
+                  Enter your bearer token to authenticate API requests.
+                </p>
               </form>
             </div>
           </CardContent>

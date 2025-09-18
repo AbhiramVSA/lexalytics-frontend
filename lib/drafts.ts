@@ -11,41 +11,64 @@ export type UploadDraftResponse = {
 
 export async function uploadDraft(file: File): Promise<UploadDraftResponse> {
     const form = new FormData()
+    // Match the curl format: -F 'file=@doc.pdf;type=application/pdf'
     form.append('file', file, file.name)
 
     const authHeader = getAuthHeader()
+    console.log('Making request to:', `${baseUrl}/api/v1/draft/drafts/`)
+    console.log('Auth header:', authHeader)
+    console.log('Expected curl format:')
+    console.log('  URL: http://52.201.231.42/api/v1/draft/drafts/')
+    console.log('  Headers: accept: application/json, Authorization: <token>')
+    console.log('  FormData: file field with PDF')
+    
     if (!authHeader.Authorization) {
-        throw new Error('Not authenticated: no bearer token found. Please log in.')
+        throw new Error('Not authenticated: Bearer token is required. Please set your authentication token in Settings.')
     }
 
-    // Only Authorization + Accept
+    // Only Authorization + Accept (Content-Type is set automatically by browser for FormData)
     const headers: Record<string, string> = {
-        Accept: 'application/json',
+        'accept': 'application/json',
         ...authHeader,
     }
 
-    console.log('[drafts] uploadDraft: POST', `${baseUrl}/api/v1/draft/drafts/`, 'headers:', { Authorization: headers.Authorization })
+    console.log('Sending request...')
     const res = await fetch(`${baseUrl}/api/v1/draft/drafts/`, {
         method: 'POST',
         body: form,
-        headers, // no Content-Type for FormData
+        headers,
     })
 
+    console.log('Response status:', res.status, res.statusText)
+    console.log('Response headers:', Object.fromEntries(res.headers.entries()))
+
     let data: any = null
+    let responseText = ''
+    
     try {
-        data = await res.json()
-    } catch {
-        // Ignore JSON parsing errors
+        responseText = await res.text()
+        console.log('Raw response body:', responseText)
+        
+        if (responseText) {
+            data = JSON.parse(responseText)
+            console.log('Parsed JSON response:', data)
+        }
+    } catch (error) {
+        console.log('Failed to parse response:', error)
+        console.log('Response text was:', responseText)
     }
 
     if (!res.ok) {
-        console.log('[drafts] uploadDraft: response status=', res.status)
-        const detail = data?.message || data?.detail || 'Failed to upload draft'
-        if (res.status === 401 || res.status === 403) {
-            clearToken()
-            throw new Error(`Unauthorized: ${detail}`)
+        const detail = data?.message || data?.detail || `HTTP ${res.status}: ${res.statusText}`
+        
+        if (res.status === 401) {
+            // Don't clear token automatically - let user decide
+            throw new Error(`Authentication failed (401): ${detail}. Check if your backend accepts this token format.`)
         }
-        throw new Error(`${detail} (HTTP ${res.status})`)
+        if (res.status === 403) {
+            throw new Error(`Access forbidden (403): ${detail}. Your token may not have the required permissions.`)
+        }
+        throw new Error(`Upload failed: ${detail}`)
     }
 
     return data as UploadDraftResponse
