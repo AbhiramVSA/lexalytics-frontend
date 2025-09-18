@@ -1,21 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronRight, BarChart3, Upload, FileText, User, Settings, Bell, RefreshCw, LogOut } from "lucide-react"
+import { ChevronRight, BarChart3, Upload, FileText, User, Settings, RefreshCw, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
-// Mock data for drafts
-const mockDrafts = [
+// Initial data for drafts
+const initialDrafts = [
   {
     id: "DRAFT-2024-001",
     title: "Companies Act Amendment Bill 2024",
     uploadDate: "2024-03-15",
     status: "Active",
     commentsCount: 1247,
-    summary:
-      "Proposes targeted amendments to streamline corporate compliance, modernize reporting requirements, and enhance transparency for publicly listed entities while reducing administrative overhead for MSMEs.",
   },
   {
     id: "DRAFT-2024-002",
@@ -23,8 +21,6 @@ const mockDrafts = [
     uploadDate: "2024-03-10",
     status: "Active",
     commentsCount: 892,
-    summary:
-      "Updates CSR spending norms, clarifies eligible activities, and introduces improved disclosure formats to better align corporate impact reporting with measurable social outcomes.",
   },
   {
     id: "DRAFT-2024-003",
@@ -32,8 +28,6 @@ const mockDrafts = [
     uploadDate: "2024-03-05",
     status: "Closed",
     commentsCount: 2156,
-    summary:
-      "Establishes principles and standards for secure, interoperable, and citizen-centric digital services, emphasizing data protection, auditability, and open APIs across government platforms.",
   },
   {
     id: "DRAFT-2024-004",
@@ -41,8 +35,6 @@ const mockDrafts = [
     uploadDate: "2024-02-28",
     status: "Active",
     commentsCount: 634,
-    summary:
-      "Aims to simplify regulatory touchpoints for startups, expand access to early-stage capital, and streamline IP facilitation, with a focus on deep tech and high-employment sectors.",
   },
 ]
 
@@ -50,12 +42,18 @@ export default function MCADashboard() {
   const [activeSection, setActiveSection] = useState("dashboard")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [selectedDraft, setSelectedDraft] = useState<string | null>(null)
+  const [drafts, setDrafts] = useState(initialDrafts)
   // NEW: frontend-only settings state
   const [username, setUsername] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [settingsAlert, setSettingsAlert] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [bulkDraftId, setBulkDraftId] = useState<string>("")
+  const [newDraftTitle, setNewDraftTitle] = useState("")
+  const [newDraftStatus, setNewDraftStatus] = useState<'Active' | 'Closed'>('Active')
+
+  const [newDraftFile, setNewDraftFile] = useState<File | null>(null)
+  const [newDraftError, setNewDraftError] = useState<string | null>(null)
   const handleLogout = () => {
     try {
       document.cookie = 'authToken=; path=/; max-age=0'
@@ -65,7 +63,7 @@ export default function MCADashboard() {
 
   const renderDashboardContent = () => {
     if (selectedDraft) {
-      const draft = mockDrafts.find((d) => d.id === selectedDraft)
+      const draft = drafts.find((d) => d.id === selectedDraft)
       return (
         <div className="p-6 space-y-6">
           {/* Breadcrumb */}
@@ -79,18 +77,6 @@ export default function MCADashboard() {
 
           {/* Draft Analytics Dashboard */}
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {/* Summary of the Draft */}
-            <Card className="bg-neutral-900 border-neutral-700 lg:col-span-2 xl:col-span-3">
-              <CardHeader>
-                <CardTitle className="text-orange-500">Summary of the Draft</CardTitle>
-                <CardDescription>High-level overview</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-neutral-300 leading-relaxed">
-                  {draft?.summary || "No summary available for this draft."}
-                </p>
-              </CardContent>
-            </Card>
             {/* Sentiment Summary */}
             <Card className="bg-neutral-900 border-neutral-700">
               <CardHeader>
@@ -184,7 +170,7 @@ export default function MCADashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockDrafts.map((draft) => (
+          {drafts.map((draft) => (
             <Card
               key={draft.id}
               className="bg-neutral-900 border-neutral-700 hover:border-orange-500 transition-colors cursor-pointer"
@@ -242,7 +228,7 @@ export default function MCADashboard() {
               <label className="block text-sm font-medium text-neutral-300 mb-2">Draft Selection</label>
               <select className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white">
                 <option>Select a draft...</option>
-                {mockDrafts.map((draft) => (
+                {drafts.map((draft) => (
                   <option key={draft.id} value={draft.id}>
                     {draft.title}
                   </option>
@@ -275,7 +261,7 @@ export default function MCADashboard() {
                 onChange={(e) => setBulkDraftId(e.target.value)}
               >
                 <option value="">Select a draft...</option>
-                {mockDrafts.map((draft) => (
+                {drafts.map((draft) => (
                   <option key={draft.id} value={draft.id}>
                     {draft.title}
                   </option>
@@ -342,6 +328,116 @@ export default function MCADashboard() {
       </Card>
     </div>
   )
+
+  const renderAddDraftPage = () => {
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0] || null
+      setNewDraftError(null)
+      if (!file) {
+        setNewDraftFile(null)
+        return
+      }
+      if (file.type !== 'application/pdf') {
+        setNewDraftError('Please upload a PDF file (.pdf).')
+        setNewDraftFile(null)
+        return
+      }
+      const maxBytes = 20 * 1024 * 1024
+      if (file.size > maxBytes) {
+        setNewDraftError('File too large. Max size is 20MB.')
+        setNewDraftFile(null)
+        return
+      }
+      setNewDraftFile(file)
+      if (!newDraftTitle) {
+        const base = file.name.replace(/\.pdf$/i, '')
+        setNewDraftTitle(base)
+      }
+    }
+
+    const onAdd = (e: React.FormEvent) => {
+      e.preventDefault()
+      setNewDraftError(null)
+      if (!newDraftFile) {
+        setNewDraftError('Please select a PDF file to upload.')
+        return
+      }
+      const uploadDate = new Date().toISOString().slice(0, 10)
+      const idSuffix = Math.random().toString(36).slice(2, 6).toUpperCase()
+      const newDraft = {
+        id: `DRAFT-${new Date().getFullYear()}-${idSuffix}`,
+        title: newDraftTitle || newDraftFile.name.replace(/\.pdf$/i, ''),
+        uploadDate,
+        status: newDraftStatus,
+        commentsCount: 0,
+      }
+      // TODO: Integrate with backend to persist PDF and metadata
+      setDrafts((prev: any[]) => [newDraft, ...prev])
+      setActiveSection('dashboard')
+      setSelectedDraft(newDraft.id)
+      setNewDraftTitle("")
+      setNewDraftStatus('Active')
+
+      setNewDraftFile(null)
+    }
+    return (
+      <div className="p-6 max-w-3xl mx-auto">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-orange-500 mb-2">Add Draft</h2>
+          <p className="text-neutral-400">Create a new draft entry for analysis</p>
+        </div>
+        <Card className="bg-neutral-900 border-neutral-700">
+          <CardHeader>
+            <CardTitle className="text-orange-500">Upload Draft (PDF)</CardTitle>
+            <CardDescription>Select a PDF and optional details</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onAdd} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">PDF File</label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={onFileChange}
+                  className="block w-full text-sm text-neutral-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-orange-500 file:text-black hover:file:bg-orange-600"
+                />
+                <p className="text-xs text-neutral-500 mt-2">Only PDF files up to 20MB are supported.</p>
+                {newDraftFile && (
+                  <div className="text-xs text-neutral-400 mt-2">Selected: {newDraftFile.name} ({(newDraftFile.size / 1024 / 1024).toFixed(2)} MB)</div>
+                )}
+                {newDraftError && (
+                  <div className="mt-2 text-sm p-3 rounded border bg-red-900/30 border-red-600 text-red-300">{newDraftError}</div>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Title</label>
+                <input
+                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
+                  value={newDraftTitle}
+                  onChange={(e) => setNewDraftTitle(e.target.value)}
+                  placeholder="Enter draft title"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Status</label>
+                <select
+                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
+                  value={newDraftStatus}
+                  onChange={(e) => setNewDraftStatus(e.target.value as any)}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Closed">Closed</option>
+                </select>
+              </div>
+
+              <Button type="submit" disabled={!newDraftFile} className="w-full bg-orange-500 hover:bg-orange-600 text-black disabled:opacity-50 disabled:cursor-not-allowed">Add Draft</Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   const renderSettingsPage = () => {
     const handleSave = (e: React.FormEvent) => {
@@ -456,6 +552,7 @@ export default function MCADashboard() {
             {[
               { id: "dashboard", icon: BarChart3, label: "DASHBOARD" },
               { id: "upload", icon: Upload, label: "UPLOAD COMMENT" },
+              { id: "add-draft", icon: FileText, label: "ADD DRAFT" },
             ].map((item) => (
               <button
                 key={item.id}
@@ -501,7 +598,7 @@ export default function MCADashboard() {
               </div>
               <div className="text-xs text-neutral-500">
                 <div>UPTIME: 99.7%</div>
-                <div>DRAFTS: {mockDrafts.length} ACTIVE</div>
+                <div>DRAFTS: {drafts.length} ACTIVE</div>
                 <div>COMMENTS: 4.9K ANALYZED</div>
               </div>
             </div>
@@ -532,9 +629,6 @@ export default function MCADashboard() {
               LAST UPDATE: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
             </div>
             <Button variant="ghost" size="icon" className="text-neutral-400 hover:text-orange-500">
-              <Bell className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-neutral-400 hover:text-orange-500">
               <RefreshCw className="w-4 h-4" />
             </Button>
             <Button variant="ghost" size="icon" onClick={handleLogout} className="text-neutral-400 hover:text-orange-500">
@@ -547,6 +641,7 @@ export default function MCADashboard() {
         <div className="flex-1 overflow-auto">
           {activeSection === "dashboard" && renderDashboardContent()}
           {activeSection === "upload" && renderUploadPage()}
+          {activeSection === "add-draft" && renderAddDraftPage()}
           {activeSection === "profile" && renderProfilePage()}
           {activeSection === "settings" && renderSettingsPage()}
         </div>
