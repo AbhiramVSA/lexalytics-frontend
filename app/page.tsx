@@ -1,50 +1,29 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ChevronRight, BarChart3, Upload, FileText, User, Settings, RefreshCw, LogOut } from "lucide-react"
+import { ChevronRight, BarChart3, Upload, FileText, User, Settings, RefreshCw, LogOut, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { uploadDraft } from "@/lib/drafts"
+import { uploadDraft, getDraft, listDrafts, deleteDraft } from "@/lib/drafts"
 import { getToken, setToken, clearToken as clearStoredToken } from "@/lib/token"
 
-// Initial data for drafts
-const initialDrafts = [
-  {
-    id: "DRAFT-2024-001",
-    title: "Companies Act Amendment Bill 2024",
-    uploadDate: "2024-03-15",
-    status: "Active",
-    commentsCount: 1247,
-  },
-  {
-    id: "DRAFT-2024-002",
-    title: "Corporate Social Responsibility Guidelines",
-    uploadDate: "2024-03-10",
-    status: "Active",
-    commentsCount: 892,
-  },
-  {
-    id: "DRAFT-2024-003",
-    title: "Digital Governance Framework",
-    uploadDate: "2024-03-05",
-    status: "Closed",
-    commentsCount: 2156,
-  },
-  {
-    id: "DRAFT-2024-004",
-    title: "Startup India Policy Revision",
-    uploadDate: "2024-02-28",
-    status: "Active",
-    commentsCount: 634,
-  },
-]
+interface Draft {
+  id: string;
+  title?: string; // Optional for display purposes, derived from draft content
+  uploadDate?: string; // Optional for display purposes
+  status?: string; // Optional for display purposes
+  commentsCount?: number; // Optional for display purposes
+  draft?: string; // The actual draft content from backend
+  summary?: string; // The draft summary from backend
+  user_id?: string; // User ID from backend
+}
 
 export default function MCADashboard() {
-  const [activeSection, setActiveSection] = useState("dashboard")
+  const [activeSection, setActiveSection] = useState("dashboard")  
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [selectedDraft, setSelectedDraft] = useState<string | null>(null)
-  const [drafts, setDrafts] = useState(initialDrafts)
+  const [drafts, setDrafts] = useState<Draft[]>([])
   // NEW: frontend-only settings state
   const [username, setUsername] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -54,12 +33,24 @@ export default function MCADashboard() {
 
   const [newDraftFile, setNewDraftFile] = useState<File | null>(null)
   const [newDraftError, setNewDraftError] = useState<string | null>(null)
+  const [loadingDraftDetails, setLoadingDraftDetails] = useState<boolean>(false)
+  const [draftDetailsError, setDraftDetailsError] = useState<string | null>(null)
+  const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [newDraftLoading, setNewDraftLoading] = useState(false)
   const [isAuthed, setIsAuthed] = useState<boolean>(false)
   const [tokenInput, setTokenInput] = useState("")
   useEffect(() => {
     setIsAuthed(!!getToken())
   }, [])
+
+  // Load drafts list when authenticated and on dashboard
+  useEffect(() => {
+    if (isAuthed && activeSection === 'dashboard') {
+      loadDraftsList()
+    }
+  }, [isAuthed, activeSection])
 
   const handleLogout = () => {
     clearStoredToken()
@@ -84,11 +75,95 @@ export default function MCADashboard() {
     setSettingsAlert({ type: 'success', text: 'Token cleared.' })
   }
 
+  const fetchDraftDetails = async (draftId: string) => {
+    setLoadingDraftDetails(true)
+    setDraftDetailsError(null)
+    
+    try {
+      console.log('Fetching details for draft:', draftId)
+      const draftDetails = await getDraft(draftId)
+      console.log('Received draft details:', Object.keys(draftDetails))
+      
+      // Update the draft in the drafts array with the fetched details
+      setDrafts(prevDrafts => 
+        prevDrafts.map(draft => 
+          draft.id === draftId 
+            ? { ...draft, ...draftDetails }
+            : draft
+        )
+      )
+    } catch (error) {
+      console.error('Failed to fetch draft details:', error)
+      setDraftDetailsError(error instanceof Error ? error.message : 'Failed to fetch draft details')
+    } finally {
+      setLoadingDraftDetails(false)
+    }
+  }
+
+  const loadDraftsList = async () => {
+    try {
+      console.log('Loading drafts list...')
+      const draftsList = await listDrafts()
+      console.log('Received drafts list:', draftsList.length, 'items')
+      
+      // Convert the basic list items to full Draft objects with display info
+      const draftsWithDisplayInfo = draftsList.map(item => ({
+        id: item.id,
+        user_id: item.user_id,
+        title: undefined, // Will be filled when draft details are loaded
+        uploadDate: undefined,
+        status: 'Draft' as const,
+        commentsCount: undefined,
+        draft: undefined,
+        summary: undefined,
+      }))
+      
+      setDrafts(draftsWithDisplayInfo)
+    } catch (error) {
+      console.error('Failed to load drafts list:', error)
+      // Don't show error to user here - they can still upload new drafts
+      // Just log it for debugging
+    }
+  }
+
+  const handleDeleteDraft = async (draftId: string) => {
+    setDeletingDraftId(draftId)
+    setDeleteError(null)
+    
+    try {
+      console.log('Deleting draft:', draftId)
+      await deleteDraft(draftId)
+      console.log('Draft deleted successfully')
+      
+      // Remove the draft from the local state
+      setDrafts(prevDrafts => prevDrafts.filter(draft => draft.id !== draftId))
+      
+      // If the deleted draft was selected, clear the selection
+      if (selectedDraft === draftId) {
+        setSelectedDraft(null)
+      }
+      
+      // Close confirmation dialog
+      setConfirmDeleteId(null)
+      
+    } catch (error) {
+      console.error('Failed to delete draft:', error)
+      setDeleteError(error instanceof Error ? error.message : 'Failed to delete draft')
+    } finally {
+      setDeletingDraftId(null)
+    }
+  }
+
 
 
   const renderDashboardContent = () => {
     if (selectedDraft) {
       const draft = drafts.find((d) => d.id === selectedDraft)
+      if (!draft) {
+        // If selected draft doesn't exist, reset selection
+        setSelectedDraft(null)
+        return null
+      }
       return (
         <div className="p-6 space-y-6">
           {/* Breadcrumb */}
@@ -97,87 +172,96 @@ export default function MCADashboard() {
               Dashboard
             </button>
             <span>/</span>
-            <span className="text-orange-500">{draft?.title}</span>
+            <span className="text-orange-500">{draft.title || 'Draft Details'}</span>
           </div>
 
-          {/* Draft Analytics Dashboard */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {/* Sentiment Summary */}
+          {/* Draft Content Display */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Draft Summary */}
             <Card className="bg-neutral-900 border-neutral-700">
               <CardHeader>
-                <CardTitle className="text-orange-500">Overall Sentiment</CardTitle>
-                <CardDescription>Aggregated feedback analysis</CardDescription>
+                <CardTitle className="text-orange-500">Executive Summary</CardTitle>
+                <CardDescription>AI-generated draft summary</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-green-400">Positive</span>
-                    <span className="text-green-400 font-mono">67%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-yellow-400">Neutral</span>
-                    <span className="text-yellow-400 font-mono">21%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-red-400">Negative</span>
-                    <span className="text-red-400 font-mono">12%</span>
-                  </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {loadingDraftDetails ? (
+                    <div className="text-center py-8">
+                      <RefreshCw className="h-6 w-6 animate-spin text-orange-500 mx-auto mb-2" />
+                      <span className="text-neutral-500">Loading summary...</span>
+                    </div>
+                  ) : draftDetailsError ? (
+                    <div className="text-center py-8">
+                      <span className="text-red-400 text-sm">{draftDetailsError}</span>
+                    </div>
+                  ) : draft.summary ? (
+                    <p className="text-sm text-neutral-300 whitespace-pre-wrap leading-relaxed">
+                      {draft.summary}
+                    </p>
+                  ) : (
+                    <div className="text-center py-8">
+                      <span className="text-neutral-500">No summary available</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Heatmap Placeholder */}
+            {/* Draft Content */}
             <Card className="bg-neutral-900 border-neutral-700 lg:col-span-2">
               <CardHeader>
-                <CardTitle className="text-orange-500">Sentiment Heatmap</CardTitle>
-                <CardDescription>Sentiment distribution over time</CardDescription>
+                <CardTitle className="text-orange-500">Draft Content</CardTitle>
+                <CardDescription>Full document text</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-48 bg-neutral-800 rounded border border-neutral-600 flex items-center justify-center">
-                  <span className="text-neutral-500 font-mono">[HEATMAP VISUALIZATION]</span>
+                <div className="max-h-96 overflow-y-auto">
+                  {loadingDraftDetails ? (
+                    <div className="text-center py-8">
+                      <RefreshCw className="h-6 w-6 animate-spin text-orange-500 mx-auto mb-2" />
+                      <span className="text-neutral-500">Loading draft content...</span>
+                    </div>
+                  ) : draftDetailsError ? (
+                    <div className="text-center py-8">
+                      <span className="text-red-400 text-sm">{draftDetailsError}</span>
+                      <button 
+                        onClick={() => fetchDraftDetails(draft.id)}
+                        className="block mt-2 px-3 py-1 bg-orange-500 text-black text-xs rounded hover:bg-orange-600 transition-colors mx-auto"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ) : draft.draft ? (
+                    <div className="text-sm text-neutral-300 whitespace-pre-wrap leading-relaxed font-mono">
+                      {draft.draft}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <span className="text-neutral-500">No content available</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
+          </div>
 
-            {/* Word Cloud */}
+          {/* Analysis Actions */}
+          <div className="mt-6">
             <Card className="bg-neutral-900 border-neutral-700">
               <CardHeader>
-                <CardTitle className="text-orange-500">Key Terms</CardTitle>
-                <CardDescription>Most frequent keywords</CardDescription>
+                <CardTitle className="text-orange-500">Analysis Actions</CardTitle>
+                <CardDescription>Perform sentiment analysis on this draft</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-48 bg-neutral-800 rounded border border-neutral-600 flex items-center justify-center">
-                  <span className="text-neutral-500 font-mono">[WORD CLOUD]</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Impactful Comments */}
-            <Card className="bg-neutral-900 border-neutral-700 lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-orange-500">Most Impactful Comments</CardTitle>
-                <CardDescription>Highlighted stakeholder feedback</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 bg-neutral-800 rounded border border-neutral-600">
-                    <p className="text-sm text-neutral-300 mb-2">
-                      "The proposed amendments will significantly impact small businesses..."
-                    </p>
-                    <div className="flex justify-between text-xs text-neutral-500">
-                      <span>Impact Score: 8.7/10</span>
-                      <span>Stakeholder ID: STK-2024-0847</span>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-neutral-800 rounded border border-neutral-600">
-                    <p className="text-sm text-neutral-300 mb-2">
-                      "Implementation timeline needs reconsideration for compliance..."
-                    </p>
-                    <div className="flex justify-between text-xs text-neutral-500">
-                      <span>Impact Score: 8.3/10</span>
-                      <span>Stakeholder ID: STK-2024-1203</span>
-                    </div>
-                  </div>
+                <div className="flex flex-wrap gap-4">
+                  <button className="px-4 py-2 bg-orange-500 text-black rounded hover:bg-orange-600 transition-colors">
+                    Run Sentiment Analysis
+                  </button>
+                  <button className="px-4 py-2 bg-neutral-700 text-white rounded hover:bg-neutral-600 transition-colors">
+                    Generate Report
+                  </button>
+                  <button className="px-4 py-2 bg-neutral-700 text-white rounded hover:bg-neutral-600 transition-colors">
+                    Export Data
+                  </button>
                 </div>
               </CardContent>
             </Card>
@@ -195,21 +279,45 @@ export default function MCADashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {drafts.map((draft) => (
-            <Card
-              key={draft.id}
-              className="bg-neutral-900 border-neutral-700 hover:border-orange-500 transition-colors cursor-pointer"
-              onClick={() => setSelectedDraft(draft.id)}
-            >
+          {drafts.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <div className="text-neutral-500 text-lg mb-2">No drafts available</div>
+              <div className="text-neutral-600 text-sm">Upload a draft to get started with sentiment analysis</div>
+            </div>
+          ) : (
+            drafts.map((draft) => (
+              <Card
+                key={draft.id}
+                className="bg-neutral-900 border-neutral-700 hover:border-orange-500 transition-colors cursor-pointer"
+                onClick={() => {
+                  setSelectedDraft(draft.id)
+                  // Fetch draft details if they haven't been loaded yet
+                  if (!draft.draft && !draft.summary) {
+                    fetchDraftDetails(draft.id)
+                  }
+                }}
+              >
               <CardHeader>
                 <div className="flex justify-between items-start mb-2">
-                  <CardTitle className="text-white text-lg">{draft.title}</CardTitle>
-                  <Badge
-                    variant={draft.status === "Active" ? "default" : "secondary"}
-                    className="bg-orange-500 text-black"
-                  >
-                    {draft.status}
-                  </Badge>
+                  <CardTitle className="text-white text-lg">{draft.title || 'Untitled Draft'}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={draft.status === "Active" ? "default" : "secondary"}
+                      className="bg-orange-500 text-black"
+                    >
+                      {draft.status || 'Draft'}
+                    </Badge>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation() // Prevent card click
+                        setConfirmDeleteId(draft.id)
+                      }}
+                      className="p-1 text-neutral-400 hover:text-red-400 transition-colors"
+                      title="Delete draft"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
                 <CardDescription className="text-neutral-400">ID: {draft.id}</CardDescription>
               </CardHeader>
@@ -217,18 +325,19 @@ export default function MCADashboard() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-neutral-500">Upload Date:</span>
-                    <span className="text-neutral-300 font-mono">{draft.uploadDate}</span>
+                    <span className="text-neutral-300 font-mono">{draft.uploadDate || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-neutral-500">Comments:</span>
                     <span className="text-orange-500 font-mono">
-                      {draft.commentsCount.toLocaleString()}
+                      {draft.commentsCount?.toLocaleString() || 'N/A'}
                     </span>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          ))}
+            ))
+          )}
         </div>
       </div>
     )
@@ -255,7 +364,7 @@ export default function MCADashboard() {
                 <option>Select a draft...</option>
                 {drafts.map((draft) => (
                   <option key={draft.id} value={draft.id}>
-                    {draft.title}
+                    {draft.title || 'Untitled Draft'}
                   </option>
                 ))}
               </select>
@@ -288,7 +397,7 @@ export default function MCADashboard() {
                 <option value="">Select a draft...</option>
                 {drafts.map((draft) => (
                   <option key={draft.id} value={draft.id}>
-                    {draft.title}
+                    {draft.title || 'Untitled Draft'}
                   </option>
                 ))}
               </select>
@@ -329,25 +438,9 @@ export default function MCADashboard() {
           <CardDescription>Latest activity</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="p-4 bg-neutral-800 rounded border border-neutral-600">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-sm text-orange-500">Companies Act Amendment Bill 2024</span>
-                <span className="text-xs text-neutral-500">2024-03-14</span>
-              </div>
-              <p className="text-sm text-neutral-300">
-                The proposed changes to Section 12 require careful consideration...
-              </p>
-            </div>
-            <div className="p-4 bg-neutral-800 rounded border border-neutral-600">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-sm text-orange-500">CSR Guidelines</span>
-                <span className="text-xs text-neutral-500">2024-03-12</span>
-              </div>
-              <p className="text-sm text-neutral-300">
-                Implementation timeline should be extended for better compliance...
-              </p>
-            </div>
+          <div className="text-center py-12">
+            <div className="text-neutral-500 text-lg mb-2">No comments yet</div>
+            <div className="text-neutral-600 text-sm">Your submitted comments will appear here</div>
           </div>
         </CardContent>
       </Card>
@@ -393,6 +486,9 @@ export default function MCADashboard() {
           uploadDate,
           status: 'Active' as const,
           commentsCount: 0,
+          draft: resp.draft, // Include draft content from upload response
+          summary: resp.summary, // Include summary from upload response
+          user_id: resp.user_id,
         }
         setDrafts((prev: any[]) => [created, ...prev])
         setActiveSection('dashboard')
@@ -692,7 +788,7 @@ export default function MCADashboard() {
               <div className="text-xs text-neutral-500">
                 <div>UPTIME: 99.7%</div>
                 <div>DRAFTS: {drafts.length} ACTIVE</div>
-                <div>COMMENTS: 4.9K ANALYZED</div>
+                <div>COMMENTS: READY FOR ANALYSIS</div>
               </div>
             </div>
           )}
@@ -742,6 +838,49 @@ export default function MCADashboard() {
           {activeSection === "settings" && renderSettingsPage()}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-neutral-900 border border-neutral-700 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-white mb-2">Delete Draft</h3>
+            <p className="text-neutral-300 mb-4">
+              Are you sure you want to delete this draft? This action cannot be undone.
+            </p>
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-900/20 border border-red-500/20 rounded text-red-400 text-sm">
+                {deleteError}
+              </div>
+            )}
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setConfirmDeleteId(null)
+                  setDeleteError(null)
+                }}
+                disabled={deletingDraftId === confirmDeleteId}
+                className="px-4 py-2 text-neutral-300 hover:text-white transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteDraft(confirmDeleteId)}
+                disabled={deletingDraftId === confirmDeleteId}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {deletingDraftId === confirmDeleteId ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
