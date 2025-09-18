@@ -4,10 +4,7 @@ export type AuthResponse = {
     error?: string
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001"
-const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_AUTH === 'true'
-const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL || 'demo@example.com'
-const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD || 'demo1234'
+const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://52.201.231.42"
 
 async function request<T>(path: string, body: unknown): Promise<T> {
     const res = await fetch(`${baseUrl}${path}`, {
@@ -30,21 +27,24 @@ async function request<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function login(email: string, password: string): Promise<AuthResponse> {
-    if (demoEnabled) {
-        await new Promise((r) => setTimeout(r, 400))
-        if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
-            return { token: 'demo-token', user: { email, name: 'Demo User' } }
-        }
-        throw new Error('Invalid credentials')
+    // Backend: POST /api/v1/login/login -> { access_token, token_type }
+    const data = await request<any>('/api/v1/login/login', { email, password })
+    if (data?.access_token) {
+        return { token: data.access_token }
     }
-    return request<AuthResponse>('/auth/login', { email, password })
+    throw new Error('Invalid response from login endpoint')
 }
 
 export async function signup(name: string, email: string, password: string): Promise<AuthResponse> {
-    if (demoEnabled) {
-        await new Promise((r) => setTimeout(r, 400))
-        // In demo mode, simply accept any signup and return a token
-        return { token: 'demo-token', user: { email, name: name || 'Demo User' } }
+    // Backend: POST /api/v1/login/register -> { id, username, email }
+    const user = await request<any>('/api/v1/login/register', { username: name, email, password })
+    return { user }
+}
+
+export function logout(): void {
+    try {
+        document.cookie = 'authToken=; path=/; max-age=0'
+    } catch {
+        // no-op
     }
-    return request<AuthResponse>('/auth/signup', { name, email, password })
 }
