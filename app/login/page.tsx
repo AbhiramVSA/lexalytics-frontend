@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { login } from '@/lib/auth-client'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { setToken } from '@/lib/token'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -21,7 +22,7 @@ export default function LoginPage() {
         try {
             const res = await login(email, password)
             if (!res.token) throw new Error('No token returned')
-            document.cookie = `authToken=${res.token}; path=/; max-age=${60 * 60 * 24 * 7}`
+            setToken(res.token)
             const next = searchParams?.get('next') || '/'
             router.replace(next)
         } catch (err: any) {

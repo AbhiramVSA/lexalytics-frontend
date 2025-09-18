@@ -1,10 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ChevronRight, BarChart3, Upload, FileText, User, Settings, RefreshCw, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { uploadDraft } from "@/lib/drafts"
+import { getToken, setToken, clearToken as clearStoredToken } from "@/lib/token"
+import { clearToken } from "@/lib/token"
 
 // Initial data for drafts
 const initialDrafts = [
@@ -49,15 +52,17 @@ export default function MCADashboard() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [settingsAlert, setSettingsAlert] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [bulkDraftId, setBulkDraftId] = useState<string>("")
-  const [newDraftTitle, setNewDraftTitle] = useState("")
-  const [newDraftStatus, setNewDraftStatus] = useState<'Active' | 'Closed'>('Active')
 
   const [newDraftFile, setNewDraftFile] = useState<File | null>(null)
   const [newDraftError, setNewDraftError] = useState<string | null>(null)
+  const [newDraftLoading, setNewDraftLoading] = useState(false)
+  const [isAuthed, setIsAuthed] = useState<boolean>(false)
+  useEffect(() => {
+    setIsAuthed(!!getToken())
+  }, [])
+
   const handleLogout = () => {
-    try {
-      document.cookie = 'authToken=; path=/; max-age=0'
-    } catch { }
+    clearStoredToken()
     window.location.href = '/login'
   }
 
@@ -349,36 +354,41 @@ export default function MCADashboard() {
         return
       }
       setNewDraftFile(file)
-      if (!newDraftTitle) {
-        const base = file.name.replace(/\.pdf$/i, '')
-        setNewDraftTitle(base)
-      }
     }
 
-    const onAdd = (e: React.FormEvent) => {
+    const onAdd = async (e: React.FormEvent) => {
       e.preventDefault()
       setNewDraftError(null)
       if (!newDraftFile) {
         setNewDraftError('Please select a PDF file to upload.')
         return
       }
-      const uploadDate = new Date().toISOString().slice(0, 10)
-      const idSuffix = Math.random().toString(36).slice(2, 6).toUpperCase()
-      const newDraft = {
-        id: `DRAFT-${new Date().getFullYear()}-${idSuffix}`,
-        title: newDraftTitle || newDraftFile.name.replace(/\.pdf$/i, ''),
-        uploadDate,
-        status: newDraftStatus,
-        commentsCount: 0,
+      setNewDraftLoading(true)
+      try {
+        const resp = await uploadDraft(newDraftFile)
+        const uploadDate = new Date().toISOString().slice(0, 10)
+        const created = {
+          id: resp.id,
+          title: newDraftFile.name.replace(/\.pdf$/i, ''),
+          uploadDate,
+          status: 'Active' as const,
+          commentsCount: 0,
+        }
+        setDrafts((prev: any[]) => [created, ...prev])
+        setActiveSection('dashboard')
+        setSelectedDraft(created.id)
+        setNewDraftFile(null)
+      } catch (err: any) {
+        const raw = (err?.message || 'Failed to upload draft') as string
+        const lower = raw.toLowerCase()
+        if (lower.includes('unauthorized') || lower.includes('invalid authentication') || lower.includes('401')) {
+          setNewDraftError('Not authenticated. Please log in again, then retry the upload.')
+        } else {
+          setNewDraftError(raw)
+        }
+      } finally {
+        setNewDraftLoading(false)
       }
-      // TODO: Integrate with backend to persist PDF and metadata
-      setDrafts((prev: any[]) => [newDraft, ...prev])
-      setActiveSection('dashboard')
-      setSelectedDraft(newDraft.id)
-      setNewDraftTitle("")
-      setNewDraftStatus('Active')
-
-      setNewDraftFile(null)
     }
     return (
       <div className="p-6 max-w-3xl mx-auto">
@@ -389,7 +399,7 @@ export default function MCADashboard() {
         <Card className="bg-neutral-900 border-neutral-700">
           <CardHeader>
             <CardTitle className="text-orange-500">Upload Draft (PDF)</CardTitle>
-            <CardDescription>Select a PDF and optional details</CardDescription>
+            <CardDescription>Only a PDF file is required</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={onAdd} className="space-y-4">
@@ -409,29 +419,9 @@ export default function MCADashboard() {
                   <div className="mt-2 text-sm p-3 rounded border bg-red-900/30 border-red-600 text-red-300">{newDraftError}</div>
                 )}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-300 mb-2">Title</label>
-                <input
-                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
-                  value={newDraftTitle}
-                  onChange={(e) => setNewDraftTitle(e.target.value)}
-                  placeholder="Enter draft title"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-300 mb-2">Status</label>
-                <select
-                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
-                  value={newDraftStatus}
-                  onChange={(e) => setNewDraftStatus(e.target.value as any)}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Closed">Closed</option>
-                </select>
-              </div>
 
-              <Button type="submit" disabled={!newDraftFile} className="w-full bg-orange-500 hover:bg-orange-600 text-black disabled:opacity-50 disabled:cursor-not-allowed">Add Draft</Button>
+
+              <Button type="submit" disabled={!newDraftFile || newDraftLoading} className="w-full bg-orange-500 hover:bg-orange-600 text-black disabled:opacity-50 disabled:cursor-not-allowed">{newDraftLoading ? 'Uploading…' : 'Add Draft'}</Button>
             </form>
           </CardContent>
         </Card>
@@ -440,6 +430,8 @@ export default function MCADashboard() {
   }
 
   const renderSettingsPage = () => {
+    const [tokenInput, setTokenInput] = useState("")
+
     const handleSave = (e: React.FormEvent) => {
       e.preventDefault()
       if (newPassword && newPassword !== confirmPassword) {
@@ -450,6 +442,24 @@ export default function MCADashboard() {
       // Simulate clear of password fields after "save"
       setNewPassword("")
       setConfirmPassword("")
+    }
+
+    const handleTokenSave = (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!tokenInput.trim()) {
+        setSettingsAlert({ type: 'error', text: 'Please paste a valid bearer token.' })
+        return
+      }
+      setToken(tokenInput.trim())
+      setIsAuthed(true)
+      setSettingsAlert({ type: 'success', text: 'Bearer token saved successfully.' })
+      setTokenInput("")
+    }
+
+    const handleTokenClear = () => {
+      clearStoredToken()
+      setIsAuthed(false)
+      setSettingsAlert({ type: 'success', text: 'Bearer token cleared. Please log in again.' })
     }
 
     return (
@@ -516,6 +526,29 @@ export default function MCADashboard() {
                 Note: This is a client-side demo only. Changes are not persisted.
               </p>
             </form>
+
+            <div className="mt-8 border-t border-neutral-800 pt-6">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="text-orange-500 font-medium">Authentication</div>
+                  <div className="text-xs text-neutral-500">Status: {isAuthed ? <span className="text-green-400">Authenticated</span> : <span className="text-red-400">Not authenticated</span>}</div>
+                </div>
+              </div>
+              <form onSubmit={handleTokenSave} className="space-y-3">
+                <label className="block text-sm font-medium text-neutral-300">Paste Bearer Token</label>
+                <input
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  placeholder="eyJhbGciOiJI..."
+                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
+                />
+                <div className="flex gap-3">
+                  <Button type="submit" className="bg-orange-500 hover:bg-orange-600 text-black">Save Token</Button>
+                  <Button type="button" variant="secondary" onClick={handleTokenClear} className="bg-neutral-700 hover:bg-neutral-600">Clear Token</Button>
+                </div>
+                <p className="text-xs text-neutral-500">The upload endpoint will use Authorization: bearer &lt;token&gt;.</p>
+              </form>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -627,6 +660,9 @@ export default function MCADashboard() {
           <div className="flex items-center gap-4">
             <div className="text-xs text-neutral-500">
               LAST UPDATE: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
+            </div>
+            <div className={`text-[10px] px-2 py-1 rounded ${isAuthed ? 'bg-green-900/30 text-green-300 border border-green-600' : 'bg-red-900/30 text-red-300 border border-red-600'}`}>
+              {isAuthed ? 'Authenticated' : 'Not Authenticated'}
             </div>
             <Button variant="ghost" size="icon" className="text-neutral-400 hover:text-orange-500">
               <RefreshCw className="w-4 h-4" />

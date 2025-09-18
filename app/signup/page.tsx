@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { signup, login } from '@/lib/auth-client'
+import { setToken } from '@/lib/token'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
@@ -24,7 +25,7 @@ export default function SignupPage() {
             try {
                 const res = await login(email, password)
                 if (res.token) {
-                    document.cookie = `authToken=${res.token}; path=/; max-age=${60 * 60 * 24 * 7}`
+                    setToken(res.token)
                     router.replace('/')
                     return
                 }
