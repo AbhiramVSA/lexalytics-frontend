@@ -1,13 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ChevronRight, BarChart3, Upload, FileText, User, Settings, RefreshCw, LogOut, Trash2 } from "lucide-react"
+import { ChevronRight, BarChart3, Upload, FileText, Settings, RefreshCw, LogOut, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { uploadDraft, getDraft, listDrafts, deleteDraft } from "@/lib/drafts"
 import { createDraftComment, listDraftComments, uploadDraftCommentsCsv, type CreateDraftCommentRequest, type CreateDraftCommentResponse, type DraftComment, type ListDraftCommentsResponse } from "@/lib/comments"
-import { getToken, setToken, clearToken as clearStoredToken } from "@/lib/token"
+import { getToken, clearToken as clearStoredToken } from "@/lib/token"
 
 interface Draft {
   id: string;
@@ -34,9 +34,6 @@ export default function MCADashboard() {
 
   const [commentDraftId, setCommentDraftId] = useState<string>("")
   const [commentText, setCommentText] = useState("")
-  const [sentimentAnalysis, setSentimentAnalysis] = useState("")
-  const [sentimentScore, setSentimentScore] = useState("")
-  const [sentimentKeywords, setSentimentKeywords] = useState("")
   const [commentLoading, setCommentLoading] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
   const [commentSuccess, setCommentSuccess] = useState<string | null>(null)
@@ -63,7 +60,6 @@ export default function MCADashboard() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [newDraftLoading, setNewDraftLoading] = useState(false)
   const [isAuthed, setIsAuthed] = useState<boolean>(false)
-  const [tokenInput, setTokenInput] = useState("")
   useEffect(() => {
     setIsAuthed(!!getToken())
   }, [])
@@ -109,25 +105,8 @@ export default function MCADashboard() {
 
   const handleLogout = () => {
     clearStoredToken()
-    window.location.href = '/login'
-  }
-
-  const handleTokenSave = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!tokenInput.trim()) {
-      setSettingsAlert({ type: 'error', text: 'Please enter a bearer token.' })
-      return
-    }
-    setToken(tokenInput.trim())
-    setIsAuthed(true)
-    setSettingsAlert({ type: 'success', text: 'Token saved successfully.' })
-    setTokenInput("")
-  }
-
-  const handleTokenClear = () => {
-    clearStoredToken()
     setIsAuthed(false)
-    setSettingsAlert({ type: 'success', text: 'Token cleared.' })
+    window.location.href = '/login'
   }
 
   const fetchDraftDetails = async (draftId: string) => {
@@ -244,16 +223,9 @@ export default function MCADashboard() {
 
     const payload: CreateDraftCommentRequest = {
       comment: commentText.trim(),
-    }
-
-    if (sentimentAnalysis.trim()) {
-      payload.sentiment_analysis = sentimentAnalysis.trim()
-    }
-    if (sentimentScore.trim()) {
-      payload.sentiment_score = sentimentScore.trim()
-    }
-    if (sentimentKeywords.trim()) {
-      payload.sentiment_keywords = sentimentKeywords.trim()
+      sentiment_analysis: 'string',
+      sentiment_score: 'string',
+      sentiment_keywords: 'string',
     }
 
     try {
@@ -262,9 +234,6 @@ export default function MCADashboard() {
       setCommentSuccess('Comment submitted successfully.')
       setLastCommentResponse(response)
       setCommentText('')
-      setSentimentAnalysis('')
-      setSentimentScore('')
-      setSentimentKeywords('')
       await loadDraftComments(commentDraftId)
     } catch (error) {
       console.error('Failed to submit comment:', error)
@@ -683,38 +652,6 @@ export default function MCADashboard() {
                   required
                 />
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-300 mb-2">Sentiment Analysis (optional)</label>
-                  <input
-                    type="text"
-                    className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
-                    placeholder="e.g. positive, neutral, negative"
-                    value={sentimentAnalysis}
-                    onChange={(e) => setSentimentAnalysis(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-300 mb-2">Sentiment Score (optional)</label>
-                  <input
-                    type="text"
-                    className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
-                    placeholder="e.g. 0.75"
-                    value={sentimentScore}
-                    onChange={(e) => setSentimentScore(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-300 mb-2">Sentiment Keywords (optional)</label>
-                <input
-                  type="text"
-                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
-                  placeholder="Comma-separated keywords"
-                  value={sentimentKeywords}
-                  onChange={(e) => setSentimentKeywords(e.target.value)}
-                />
-              </div>
               {commentError && (
                 <div className="rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
                   {commentError}
@@ -871,28 +808,6 @@ export default function MCADashboard() {
     </div>
   )
 
-  const renderProfilePage = () => (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-accentPrimary mb-2">My Comments</h2>
-        <p className="text-neutral-400">Your submitted comments across all drafts</p>
-      </div>
-
-      <Card className="bg-neutral-900 border-neutral-800">
-        <CardHeader>
-          <CardTitle className="text-accentPrimary">Recent Comments</CardTitle>
-          <CardDescription>Latest activity</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12">
-            <div className="text-neutral-500 text-lg mb-2">No comments yet</div>
-            <div className="text-neutral-600 text-sm">Your submitted comments will appear here</div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-
   const renderAddDraftPage = () => {
     const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0] || null
@@ -944,7 +859,7 @@ export default function MCADashboard() {
         const raw = error instanceof Error ? error.message : 'Failed to upload draft'
         const lower = raw.toLowerCase()
         if (lower.includes('unauthorized') || lower.includes('invalid authentication') || lower.includes('401') || lower.includes('not authenticated')) {
-          setNewDraftError('Authentication required. Please set your bearer token in Settings → Authentication section before uploading.')
+          setNewDraftError('Authentication required. Please log in before uploading.')
         } else {
           setNewDraftError(raw)
         }
@@ -979,65 +894,6 @@ export default function MCADashboard() {
                 )}
                 {newDraftError && (
                   <div className="mt-2 text-sm p-3 rounded border bg-red-900/30 border-red-600 text-red-300">{newDraftError}</div>
-                )}
-              </div>
-
-              {/* Authentication Status */}
-              <div className={`p-3 rounded border ${isAuthed ? 'bg-green-900/30 border-green-600' : 'bg-red-900/30 border-red-600'}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${isAuthed ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                    <span className={`text-sm font-medium ${isAuthed ? 'text-green-400' : 'text-red-400'}`}>
-                      {isAuthed ? 'Authenticated' : 'Not Authenticated'}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        const token = getToken()
-                        console.log('Current token:', token)
-                        
-                        if (token) {
-                          try {
-                            // Decode JWT to check expiration
-                            const parts = token.split('.')
-                            const payload = JSON.parse(atob(parts[1]))
-                            const exp = payload.exp
-                            const now = Math.floor(Date.now() / 1000)
-                            const isExpired = exp < now
-                            
-                            alert(`Token: Present\nExpires: ${new Date(exp * 1000).toLocaleString()}\nExpired: ${isExpired ? 'Yes' : 'No'}`)
-                            } catch {
-                            alert(`Token: Present but invalid format`)
-                          }
-                        } else {
-                          alert('Token: Missing')
-                        }
-                      }}
-                      className="text-xs border-neutral-600 text-neutral-400 hover:bg-neutral-800"
-                    >
-                      Test Token
-                    </Button>
-                    {!isAuthed && (
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setActiveSection('settings')}
-                        className="text-xs border-red-600 text-red-400 hover:bg-red-900/30"
-                      >
-                        Set Token
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                {!isAuthed && (
-                  <p className="text-xs text-red-300 mt-1">
-                    You need to set your bearer token in Settings before uploading files.
-                  </p>
                 )}
               </div>
 
@@ -1131,31 +987,6 @@ export default function MCADashboard() {
                 Note: This is a client-side demo only. Changes are not persisted.
               </p>
             </form>
-
-            <div className="mt-8 border-t border-neutral-800 pt-6">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="text-accentPrimary font-medium">Authentication</div>
-                  <div className="text-xs text-neutral-500">Status: {isAuthed ? <span className="text-green-400">Authenticated</span> : <span className="text-red-400">Not authenticated</span>}</div>
-                </div>
-              </div>
-              <form onSubmit={handleTokenSave} className="space-y-3">
-                <label className="block text-sm font-medium text-neutral-300">Paste Bearer Token</label>
-                <input
-                  value={tokenInput}
-                  onChange={(e) => setTokenInput(e.target.value)}
-                  placeholder="Paste your bearer token here..."
-                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
-                />
-                <div className="flex gap-2">
-                  <Button type="submit" className="bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground">Save Token</Button>
-                  <Button type="button" variant="secondary" onClick={handleTokenClear} className="bg-neutral-700 hover:bg-neutral-600">Clear Token</Button>
-                </div>
-                <p className="text-xs text-neutral-500">
-                  Enter your bearer token to authenticate API requests.
-                </p>
-              </form>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -1211,7 +1042,6 @@ export default function MCADashboard() {
               <div className="pt-4">
                 <div className="text-xs text-neutral-500 uppercase tracking-wider mb-2 px-3">My Profile</div>
                 {[
-                  { id: "profile", icon: User, label: "MY COMMENTS" },
                   { id: "settings", icon: Settings, label: "SETTINGS" },
                 ].map((item) => (
                   <button
@@ -1279,7 +1109,6 @@ export default function MCADashboard() {
           {activeSection === "dashboard" && renderDashboardContent()}
           {activeSection === "upload" && renderUploadPage()}
           {activeSection === "add-draft" && renderAddDraftPage()}
-          {activeSection === "profile" && renderProfilePage()}
           {activeSection === "settings" && renderSettingsPage()}
         </div>
       </div>
