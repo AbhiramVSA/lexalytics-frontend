@@ -19,8 +19,8 @@ export type GetDraftResponse = {
 export type DraftListItem = {
     id: string
     user_id: string
-    // Note: List endpoint may not include full draft content and summary
-    // Only basic metadata for listing purposes
+    draft?: string
+    summary?: string
 }
 
 export type ListDraftsResponse = DraftListItem[]
@@ -167,9 +167,9 @@ export async function getDraft(draftId: string): Promise<GetDraftResponse> {
     return data as GetDraftResponse
 }
 
-export async function listDrafts(): Promise<ListDraftsResponse> {
+export async function listDrafts(limit = 20): Promise<ListDraftsResponse> {
     const authHeader = getAuthHeader()
-    console.log('Making request to list drafts:', `${baseUrl}/api/v1/draft/drafts/`)
+    console.log('Making request to list drafts:', `${baseUrl}/api/v1/draft/?limit=${limit}`)
     console.log('Auth header:', authHeader)
     
     if (!authHeader.Authorization) {
@@ -182,7 +182,7 @@ export async function listDrafts(): Promise<ListDraftsResponse> {
     }
 
     console.log('Fetching drafts list...')
-    const res = await fetch(`${baseUrl}/api/v1/draft/drafts/`, {
+    const res = await fetch(`${baseUrl}/api/v1/draft/?limit=${limit}`, {
         method: 'GET',
         headers,
     })

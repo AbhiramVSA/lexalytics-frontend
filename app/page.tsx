@@ -68,6 +68,38 @@ export default function MCADashboard() {
     setIsAuthed(!!getToken())
   }, [])
 
+  const getSentimentBadgeClasses = (sentiment?: string | null) => {
+    const normalized = (sentiment || "").toLowerCase()
+    if (normalized.includes("negative")) {
+      return "bg-red-500/20 text-red-200 border border-red-500/40"
+    }
+    if (normalized.includes("positive")) {
+      return "bg-green-500/20 text-green-200 border border-green-500/40"
+    }
+    if (normalized.includes("neutral")) {
+      return "bg-yellow-400/30 text-yellow-200 border border-yellow-400/40"
+    }
+    return "bg-neutral-800 text-neutral-200 border border-neutral-700"
+  }
+
+  const getSentimentScoreClasses = (score?: string | number | null) => {
+    const base = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-sm font-semibold shadow-sm border"
+    if (score === null || score === undefined || score === "") {
+      return `${base} bg-neutral-900 text-neutral-300 border-neutral-700`
+    }
+    const numeric = typeof score === "number" ? score : Number(score)
+    if (Number.isNaN(numeric)) {
+      return `${base} bg-neutral-900 text-neutral-300 border-neutral-700`
+    }
+    if (numeric <= -0.2) {
+      return `${base} bg-red-500/20 text-red-200 border-red-500/60 shadow-[0_0_12px_rgba(239,68,68,0.25)]`
+    }
+    if (numeric >= 0.2) {
+      return `${base} bg-green-500/20 text-green-200 border-green-500/60 shadow-[0_0_12px_rgba(34,197,94,0.25)]`
+    }
+    return `${base} bg-yellow-400/25 text-yellow-100 border-yellow-400/60 shadow-[0_0_12px_rgba(250,204,21,0.25)]`
+  }
+
   // Load drafts list when authenticated and on dashboard
   useEffect(() => {
     if (isAuthed && activeSection === 'dashboard') {
@@ -130,16 +162,22 @@ export default function MCADashboard() {
       console.log('Received drafts list:', draftsList.length, 'items')
       
       // Convert the basic list items to full Draft objects with display info
-      const draftsWithDisplayInfo = draftsList.map(item => ({
-        id: item.id,
-        user_id: item.user_id,
-        title: undefined, // Will be filled when draft details are loaded
+      const draftsWithDisplayInfo = draftsList.map(item => {
+        const summaryLine = item.summary?.split('\n').find(line => line.trim().length > 0)
+        const draftLine = item.draft?.split('\n').find(line => line.trim().length > 0)
+        const derivedTitle = summaryLine || draftLine || 'Untitled Draft'
+
+        return {
+          id: item.id,
+          user_id: item.user_id,
+          title: derivedTitle.trim().slice(0, 80),
         uploadDate: undefined,
         status: 'Draft' as const,
         commentsCount: undefined,
-        draft: undefined,
-        summary: undefined,
-      }))
+        draft: item.draft,
+        summary: item.summary,
+        }
+      })
       
       setDrafts(draftsWithDisplayInfo)
     } catch (error) {
@@ -499,11 +537,11 @@ export default function MCADashboard() {
                     {draftComments.map((comment) => (
                       <div key={comment.id} className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                          <Badge className="bg-accentPrimary/80 text-accentPrimary-foreground">
+                          <Badge className={getSentimentBadgeClasses(comment.sentiment_analysis)}>
                             {comment.sentiment_analysis ? comment.sentiment_analysis : 'Sentiment unknown'}
                           </Badge>
                           {comment.sentiment_score && (
-                            <span className="text-xs font-mono text-neutral-400">
+                            <span className={getSentimentScoreClasses(comment.sentiment_score)}>
                               Score: {comment.sentiment_score}
                             </span>
                           )}
@@ -692,7 +730,14 @@ export default function MCADashboard() {
                   <div className="font-medium text-accentPrimary-foreground">Saved Comment Details</div>
                   <div className="text-neutral-200">ID: <span className="font-mono text-sm">{lastCommentResponse.id}</span></div>
                   <div className="text-neutral-200">
-                    Sentiment: {lastCommentResponse.sentiment_analysis || 'N/A'} (score: {lastCommentResponse.sentiment_score || 'N/A'})
+                    Sentiment: {lastCommentResponse.sentiment_analysis || 'N/A'}{' '}
+                    <span className="text-neutral-400">
+                      (score:{' '}
+                      <span className={getSentimentScoreClasses(lastCommentResponse.sentiment_score)}>
+                        {lastCommentResponse.sentiment_score || 'N/A'}
+                      </span>
+                      )
+                    </span>
                   </div>
                   {lastCommentResponse.sentiment_keywords && (
                     <div className="text-neutral-200">Keywords: {lastCommentResponse.sentiment_keywords}</div>
@@ -807,11 +852,11 @@ export default function MCADashboard() {
                   {bulkCommentResult.slice(0, 3).map((comment) => (
                     <div key={comment.id} className="rounded border border-neutral-700 bg-neutral-900/80 p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Badge className="bg-accentPrimary/80 text-accentPrimary-foreground text-xs">
+                        <Badge className={`${getSentimentBadgeClasses(comment.sentiment_analysis)} text-xs`}>
                           {comment.sentiment_analysis || 'N/A'}
                         </Badge>
                         {comment.sentiment_score && (
-                          <span className="text-xs font-mono text-neutral-400">Score: {comment.sentiment_score}</span>
+                          <span className={getSentimentScoreClasses(comment.sentiment_score)}>Score: {comment.sentiment_score}</span>
                         )}
                       </div>
                       <p className="mt-2 text-xs leading-relaxed text-neutral-300">{comment.comment}</p>
@@ -1219,13 +1264,7 @@ export default function MCADashboard() {
               <span className="text-accentPrimary">{activeSection.toUpperCase()}</span>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-xs text-neutral-500">
-              LAST UPDATE: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
-            </div>
-            <div className={`text-[10px] px-2 py-1 rounded ${isAuthed ? 'bg-green-900/30 text-green-300 border border-green-600' : 'bg-red-900/30 text-red-300 border border-red-600'}`}>
-              {isAuthed ? 'Authenticated' : 'Not Authenticated'}
-            </div>
+          <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="text-neutral-400 hover:text-accentPrimary">
               <RefreshCw className="w-4 h-4" />
             </Button>
