@@ -1,4 +1,4 @@
-import { getAuthHeader, clearToken } from './token'
+import { getAuthHeader } from './token'
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://52.201.231.42'
 
@@ -25,17 +25,33 @@ export type DraftListItem = {
 
 export type ListDraftsResponse = DraftListItem[]
 
+type JsonRecord = Record<string, unknown>
+
+const extractDetail = (payload: unknown): string | undefined => {
+    if (payload && typeof payload === 'object') {
+        const record = payload as JsonRecord
+        const keys: Array<'message' | 'detail' | 'error'> = ['message', 'detail', 'error']
+        for (const key of keys) {
+            const value = record[key]
+            if (typeof value === 'string') {
+                return value
+            }
+        }
+    }
+    return undefined
+}
+
 export async function uploadDraft(file: File): Promise<UploadDraftResponse> {
     const form = new FormData()
     // Match the curl format: -F 'file=@doc.pdf;type=application/pdf'
     form.append('file', file, file.name)
 
     const authHeader = getAuthHeader()
-    console.log('Making request to:', `${baseUrl}/api/v1/draft/drafts/`)
+    console.log('Making request to:', `${baseUrl}/api/v1/draft/`)
     console.log('Auth header:', authHeader)
     console.log('Expected curl format:')
-    console.log('  URL: http://52.201.231.42/api/v1/draft/drafts/')
-    console.log('  Headers: accept: application/json, Authorization: <token>')
+    console.log('  URL: http://52.201.231.42/api/v1/draft/')
+    console.log('  Headers: accept: application/json, Authorization: <token> (optional for public uploads)')
     console.log('  FormData: file field with PDF')
     
     if (!authHeader.Authorization) {
@@ -49,7 +65,7 @@ export async function uploadDraft(file: File): Promise<UploadDraftResponse> {
     }
 
     console.log('Sending request...')
-    const res = await fetch(`${baseUrl}/api/v1/draft/drafts/`, {
+    const res = await fetch(`${baseUrl}/api/v1/draft/`, {
         method: 'POST',
         body: form,
         headers,
@@ -58,7 +74,7 @@ export async function uploadDraft(file: File): Promise<UploadDraftResponse> {
     console.log('Response status:', res.status, res.statusText)
     console.log('Response headers:', Object.fromEntries(res.headers.entries()))
 
-    let data: any = null
+    let data: unknown = null
     let responseText = ''
     
     try {
@@ -75,7 +91,7 @@ export async function uploadDraft(file: File): Promise<UploadDraftResponse> {
     }
 
     if (!res.ok) {
-        const detail = data?.message || data?.detail || `HTTP ${res.status}: ${res.statusText}`
+        const detail = extractDetail(data) || `HTTP ${res.status}: ${res.statusText}`
         
         if (res.status === 401) {
             // Don't clear token automatically - let user decide
@@ -113,7 +129,7 @@ export async function getDraft(draftId: string): Promise<GetDraftResponse> {
     console.log('Response status:', res.status, res.statusText)
     console.log('Response headers:', Object.fromEntries(res.headers.entries()))
 
-    let data: any = null
+    let data: unknown = null
     let responseText = ''
     
     try {
@@ -122,7 +138,11 @@ export async function getDraft(draftId: string): Promise<GetDraftResponse> {
         
         if (responseText) {
             data = JSON.parse(responseText)
-            console.log('Parsed JSON response keys:', Object.keys(data))
+            if (data && typeof data === 'object' && !Array.isArray(data)) {
+                console.log('Parsed JSON response keys:', Object.keys(data as JsonRecord))
+            } else {
+                console.log('Parsed JSON response:', data)
+            }
         }
     } catch (error) {
         console.log('Failed to parse response:', error)
@@ -130,7 +150,7 @@ export async function getDraft(draftId: string): Promise<GetDraftResponse> {
     }
 
     if (!res.ok) {
-        const detail = data?.message || data?.detail || `HTTP ${res.status}: ${res.statusText}`
+        const detail = extractDetail(data) || `HTTP ${res.status}: ${res.statusText}`
         
         if (res.status === 401) {
             throw new Error(`Authentication failed (401): ${detail}. Check if your backend accepts this token format.`)
@@ -170,7 +190,7 @@ export async function listDrafts(): Promise<ListDraftsResponse> {
     console.log('Response status:', res.status, res.statusText)
     console.log('Response headers:', Object.fromEntries(res.headers.entries()))
 
-    let data: any = null
+    let data: unknown = null
     let responseText = ''
     
     try {
@@ -187,7 +207,7 @@ export async function listDrafts(): Promise<ListDraftsResponse> {
     }
 
     if (!res.ok) {
-        const detail = data?.message || data?.detail || `HTTP ${res.status}: ${res.statusText}`
+        const detail = extractDetail(data) || `HTTP ${res.status}: ${res.statusText}`
         
         if (res.status === 401) {
             throw new Error(`Authentication failed (401): ${detail}. Check if your backend accepts this token format.`)
@@ -209,7 +229,7 @@ export async function listDrafts(): Promise<ListDraftsResponse> {
 
 export async function deleteDraft(draftId: string): Promise<void> {
     const authHeader = getAuthHeader()
-    console.log('Making request to delete draft:', `${baseUrl}/api/v1/draft/drafts/${draftId}`)
+    console.log('Making request to delete draft:', `${baseUrl}/api/v1/draft/${draftId}`)
     console.log('Auth header:', authHeader)
     
     if (!authHeader.Authorization) {
@@ -222,7 +242,7 @@ export async function deleteDraft(draftId: string): Promise<void> {
     }
 
     console.log('Deleting draft...')
-    const res = await fetch(`${baseUrl}/api/v1/draft/drafts/${draftId}`, {
+    const res = await fetch(`${baseUrl}/api/v1/draft/${draftId}`, {
         method: 'DELETE',
         headers,
     })
@@ -237,7 +257,7 @@ export async function deleteDraft(draftId: string): Promise<void> {
     }
 
     // If not 204, try to parse error response
-    let data: any = null
+    let data: unknown = null
     let responseText = ''
     
     try {
@@ -251,7 +271,7 @@ export async function deleteDraft(draftId: string): Promise<void> {
     }
 
     if (!res.ok) {
-        const detail = data?.message || data?.detail || `HTTP ${res.status}: ${res.statusText}`
+        const detail = extractDetail(data) || `HTTP ${res.status}: ${res.statusText}`
         
         if (res.status === 401) {
             throw new Error(`Authentication failed (401): ${detail}. Check if your backend accepts this token format.`)

@@ -6,10 +6,27 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Target, MapPin, Clock, Users, AlertTriangle, CheckCircle, XCircle } from "lucide-react"
 
-export default function OperationsPage() {
-  const [selectedOperation, setSelectedOperation] = useState(null)
+type OperationStatus = "active" | "planning" | "completed" | "compromised"
+type OperationPriority = "critical" | "high" | "medium" | "low"
 
-  const operations = [
+interface OperationSummary {
+  id: string
+  name: string
+  status: OperationStatus
+  priority: OperationPriority
+  location: string
+  agents: number
+  progress: number
+  startDate: string
+  estimatedCompletion: string
+  description: string
+  objectives: string[]
+}
+
+export default function OperationsPage() {
+  const [selectedOperation, setSelectedOperation] = useState<OperationSummary | null>(null)
+
+  const operations: OperationSummary[] = [
     {
       id: "OP-OMEGA-001",
       name: "SHADOW PROTOCOL",
@@ -77,12 +94,12 @@ export default function OperationsPage() {
     },
   ]
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: OperationStatus) => {
     switch (status) {
       case "active":
         return "bg-white/20 text-white"
       case "planning":
-        return "bg-orange-500/20 text-orange-500"
+        return "bg-accentPrimary/20 text-accentPrimary"
       case "completed":
         return "bg-white/20 text-white"
       case "compromised":
@@ -92,12 +109,12 @@ export default function OperationsPage() {
     }
   }
 
-  const getPriorityColor = (priority) => {
+  const getPriorityColor = (priority: OperationPriority) => {
     switch (priority) {
       case "critical":
         return "bg-red-500/20 text-red-500"
       case "high":
-        return "bg-orange-500/20 text-orange-500"
+        return "bg-accentPrimary/20 text-accentPrimary"
       case "medium":
         return "bg-neutral-500/20 text-neutral-300"
       case "low":
@@ -107,7 +124,7 @@ export default function OperationsPage() {
     }
   }
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: OperationStatus) => {
     switch (status) {
       case "active":
         return <Target className="w-4 h-4" />
@@ -131,8 +148,8 @@ export default function OperationsPage() {
           <p className="text-sm text-neutral-400">Mission planning and execution oversight</p>
         </div>
         <div className="flex gap-2">
-          <Button className="bg-orange-500 hover:bg-orange-600 text-white">New Operation</Button>
-          <Button className="bg-orange-500 hover:bg-orange-600 text-white">Mission Brief</Button>
+          <Button className="bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground">New Operation</Button>
+          <Button className="bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground">Mission Brief</Button>
         </div>
       </div>
 
@@ -192,7 +209,7 @@ export default function OperationsPage() {
         {operations.map((operation) => (
           <Card
             key={operation.id}
-            className="bg-neutral-900 border-neutral-700 hover:border-orange-500/50 transition-colors cursor-pointer"
+            className="bg-neutral-900 border-neutral-700 hover:border-accentPrimary/50 transition-colors cursor-pointer"
             onClick={() => setSelectedOperation(operation)}
           >
             <CardHeader className="pb-3">
@@ -234,7 +251,7 @@ export default function OperationsPage() {
                 </div>
                 <div className="w-full bg-neutral-800 rounded-full h-2">
                   <div
-                    className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                    className="bg-accentPrimary h-2 rounded-full transition-all duration-300"
                     style={{ width: `${operation.progress}%` }}
                   ></div>
                 </div>
@@ -309,7 +326,7 @@ export default function OperationsPage() {
                       </div>
                       <div className="w-full bg-neutral-800 rounded-full h-3">
                         <div
-                          className="bg-orange-500 h-3 rounded-full transition-all duration-300"
+                          className="bg-accentPrimary h-3 rounded-full transition-all duration-300"
                           style={{ width: `${selectedOperation.progress}%` }}
                         ></div>
                       </div>
@@ -321,7 +338,7 @@ export default function OperationsPage() {
                     <div className="space-y-2">
                       {selectedOperation.objectives.map((objective, index) => (
                         <div key={index} className="flex items-center gap-2 text-sm">
-                          <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                          <div className="w-2 h-2 bg-accentPrimary rounded-full"></div>
                           <span className="text-neutral-300">{objective}</span>
                         </div>
                       ))}
@@ -336,7 +353,7 @@ export default function OperationsPage() {
               </div>
 
               <div className="flex gap-2 pt-4 border-t border-neutral-700">
-                <Button className="bg-orange-500 hover:bg-orange-600 text-white">Update Status</Button>
+                <Button className="bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground">Update Status</Button>
                 <Button
                   variant="outline"
                   className="border-neutral-700 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-300 bg-transparent"

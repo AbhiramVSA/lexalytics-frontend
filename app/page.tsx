@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ChevronRight, BarChart3, Upload, FileText, User, Settings, RefreshCw, LogOut, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { uploadDraft, getDraft, listDrafts, deleteDraft } from "@/lib/drafts"
+import { createDraftComment, listDraftComments, uploadDraftCommentsCsv, type CreateDraftCommentRequest, type CreateDraftCommentResponse, type DraftComment, type ListDraftCommentsResponse } from "@/lib/comments"
 import { getToken, setToken, clearToken as clearStoredToken } from "@/lib/token"
 
 interface Draft {
@@ -30,6 +31,28 @@ export default function MCADashboard() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [settingsAlert, setSettingsAlert] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [bulkDraftId, setBulkDraftId] = useState<string>("")
+
+  const [commentDraftId, setCommentDraftId] = useState<string>("")
+  const [commentText, setCommentText] = useState("")
+  const [sentimentAnalysis, setSentimentAnalysis] = useState("")
+  const [sentimentScore, setSentimentScore] = useState("")
+  const [sentimentKeywords, setSentimentKeywords] = useState("")
+  const [commentLoading, setCommentLoading] = useState(false)
+  const [commentError, setCommentError] = useState<string | null>(null)
+  const [commentSuccess, setCommentSuccess] = useState<string | null>(null)
+  const [lastCommentResponse, setLastCommentResponse] = useState<CreateDraftCommentResponse | null>(null)
+
+  const [bulkCommentFile, setBulkCommentFile] = useState<File | null>(null)
+  const [bulkCommentError, setBulkCommentError] = useState<string | null>(null)
+  const [bulkCommentSuccess, setBulkCommentSuccess] = useState<string | null>(null)
+  const [bulkCommentLoading, setBulkCommentLoading] = useState(false)
+  const [bulkCommentResult, setBulkCommentResult] = useState<ListDraftCommentsResponse | null>(null)
+
+  const [commentsByDraft, setCommentsByDraft] = useState<Record<string, DraftComment[]>>({})
+  const [commentsLoadingId, setCommentsLoadingId] = useState<string | null>(null)
+  const [commentsErrorByDraft, setCommentsErrorByDraft] = useState<Record<string, string>>({})
+
+  const bulkFileInputRef = useRef<HTMLInputElement | null>(null)
 
   const [newDraftFile, setNewDraftFile] = useState<File | null>(null)
   const [newDraftError, setNewDraftError] = useState<string | null>(null)
@@ -126,6 +149,177 @@ export default function MCADashboard() {
     }
   }
 
+  const loadDraftComments = useCallback(async (draftId: string) => {
+    if (!draftId) {
+      return
+    }
+
+    setCommentsLoadingId(draftId)
+    setCommentsErrorByDraft(prev => {
+      if (!prev[draftId]) {
+        return prev
+      }
+      const next = { ...prev }
+      delete next[draftId]
+      return next
+    })
+
+    try {
+      const comments = await listDraftComments(draftId, 20)
+      setCommentsByDraft(prev => ({ ...prev, [draftId]: comments }))
+      setDrafts(prevDrafts =>
+        prevDrafts.map(draft =>
+          draft.id === draftId
+            ? { ...draft, commentsCount: comments.length }
+            : draft
+        )
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load comments'
+      setCommentsErrorByDraft(prev => ({ ...prev, [draftId]: message }))
+    } finally {
+      setCommentsLoadingId(current => (current === draftId ? null : current))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (selectedDraft && !commentsByDraft[selectedDraft] && commentsLoadingId !== selectedDraft) {
+      loadDraftComments(selectedDraft)
+    }
+  }, [selectedDraft, commentsByDraft, commentsLoadingId, loadDraftComments])
+
+  const handleCommentSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setCommentError(null)
+    setCommentSuccess(null)
+    setLastCommentResponse(null)
+
+    if (!commentDraftId) {
+      setCommentError('Please select a draft to comment on.')
+      return
+    }
+
+    if (!commentText.trim()) {
+      setCommentError('Please enter a comment before submitting.')
+      return
+    }
+
+    const payload: CreateDraftCommentRequest = {
+      comment: commentText.trim(),
+    }
+
+    if (sentimentAnalysis.trim()) {
+      payload.sentiment_analysis = sentimentAnalysis.trim()
+    }
+    if (sentimentScore.trim()) {
+      payload.sentiment_score = sentimentScore.trim()
+    }
+    if (sentimentKeywords.trim()) {
+      payload.sentiment_keywords = sentimentKeywords.trim()
+    }
+
+    try {
+      setCommentLoading(true)
+      const response = await createDraftComment(commentDraftId, payload)
+      setCommentSuccess('Comment submitted successfully.')
+      setLastCommentResponse(response)
+      setCommentText('')
+      setSentimentAnalysis('')
+      setSentimentScore('')
+      setSentimentKeywords('')
+      await loadDraftComments(commentDraftId)
+    } catch (error) {
+      console.error('Failed to submit comment:', error)
+      setCommentError(error instanceof Error ? error.message : 'Failed to submit comment')
+    } finally {
+      setCommentLoading(false)
+    }
+  }
+
+  const handleBulkFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setBulkCommentError(null)
+    setBulkCommentSuccess(null)
+    setBulkCommentResult(null)
+
+    const file = event.target.files?.[0] || null
+    if (!file) {
+      setBulkCommentFile(null)
+      return
+    }
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setBulkCommentError('Please upload a CSV file (.csv).')
+      setBulkCommentFile(null)
+      return
+    }
+
+    const maxBytes = 10 * 1024 * 1024
+    if (file.size > maxBytes) {
+      setBulkCommentError('File too large. Max size is 10MB.')
+      setBulkCommentFile(null)
+      return
+    }
+
+    setBulkCommentFile(file)
+    if (bulkFileInputRef.current) {
+      bulkFileInputRef.current.value = ''
+    }
+  }
+
+  const handleBulkCsvSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setBulkCommentError(null)
+    setBulkCommentSuccess(null)
+    setBulkCommentResult(null)
+
+    if (!bulkDraftId) {
+      setBulkCommentError('Please select a draft before uploading CSV comments.')
+      return
+    }
+
+    if (!bulkCommentFile) {
+      setBulkCommentError('Please choose a CSV file to upload.')
+      return
+    }
+
+    try {
+      setBulkCommentLoading(true)
+      const uploaded = await uploadDraftCommentsCsv(bulkDraftId, bulkCommentFile)
+      setBulkCommentResult(uploaded)
+      const count = uploaded.length
+      setBulkCommentSuccess(`Uploaded ${count} comment${count === 1 ? '' : 's'} successfully.`)
+      setBulkCommentFile(null)
+      if (bulkFileInputRef.current) {
+        bulkFileInputRef.current.value = ''
+      }
+
+      setCommentsByDraft(prev => ({ ...prev, [bulkDraftId]: uploaded }))
+      setDrafts(prevDrafts =>
+        prevDrafts.map(draft =>
+          draft.id === bulkDraftId
+            ? { ...draft, commentsCount: uploaded.length }
+            : draft
+        )
+      )
+
+      if (selectedDraft === bulkDraftId) {
+        setCommentsErrorByDraft(prev => {
+          if (!prev[bulkDraftId]) return prev
+          const next = { ...prev }
+          delete next[bulkDraftId]
+          return next
+        })
+      }
+
+      await loadDraftComments(bulkDraftId)
+    } catch (error) {
+      console.error('Failed to upload CSV comments:', error)
+      setBulkCommentError(error instanceof Error ? error.message : 'Failed to upload CSV')
+    } finally {
+      setBulkCommentLoading(false)
+    }
+  }
+
   const handleDeleteDraft = async (draftId: string) => {
     setDeletingDraftId(draftId)
     setDeleteError(null)
@@ -164,30 +358,33 @@ export default function MCADashboard() {
         setSelectedDraft(null)
         return null
       }
+      const draftComments = commentsByDraft[draft.id] ?? []
+      const commentsError = commentsErrorByDraft[draft.id]
+      const isCommentsLoading = commentsLoadingId === draft.id
       return (
         <div className="p-6 space-y-6">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-neutral-400">
-            <button onClick={() => setSelectedDraft(null)} className="hover:text-orange-500 transition-colors">
+            <button onClick={() => setSelectedDraft(null)} className="hover:text-accentPrimary transition-colors">
               Dashboard
             </button>
             <span>/</span>
-            <span className="text-orange-500">{draft.title || 'Draft Details'}</span>
+            <span className="text-accentPrimary">{draft.title || 'Draft Details'}</span>
           </div>
 
           {/* Draft Content Display */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Draft Summary */}
-            <Card className="bg-neutral-900 border-neutral-700">
+            <Card className="bg-neutral-900 border-neutral-800">
               <CardHeader>
-                <CardTitle className="text-orange-500">Executive Summary</CardTitle>
+                <CardTitle className="text-accentPrimary">Executive Summary</CardTitle>
                 <CardDescription>AI-generated draft summary</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="max-h-96 overflow-y-auto">
                   {loadingDraftDetails ? (
                     <div className="text-center py-8">
-                      <RefreshCw className="h-6 w-6 animate-spin text-orange-500 mx-auto mb-2" />
+                      <RefreshCw className="h-6 w-6 animate-spin text-accentPrimary mx-auto mb-2" />
                       <span className="text-neutral-500">Loading summary...</span>
                     </div>
                   ) : draftDetailsError ? (
@@ -208,16 +405,16 @@ export default function MCADashboard() {
             </Card>
 
             {/* Draft Content */}
-            <Card className="bg-neutral-900 border-neutral-700 lg:col-span-2">
+            <Card className="bg-neutral-900 border-neutral-800 lg:col-span-2">
               <CardHeader>
-                <CardTitle className="text-orange-500">Draft Content</CardTitle>
+                <CardTitle className="text-accentPrimary">Draft Content</CardTitle>
                 <CardDescription>Full document text</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="max-h-96 overflow-y-auto">
                   {loadingDraftDetails ? (
                     <div className="text-center py-8">
-                      <RefreshCw className="h-6 w-6 animate-spin text-orange-500 mx-auto mb-2" />
+                      <RefreshCw className="h-6 w-6 animate-spin text-accentPrimary mx-auto mb-2" />
                       <span className="text-neutral-500">Loading draft content...</span>
                     </div>
                   ) : draftDetailsError ? (
@@ -225,7 +422,7 @@ export default function MCADashboard() {
                       <span className="text-red-400 text-sm">{draftDetailsError}</span>
                       <button 
                         onClick={() => fetchDraftDetails(draft.id)}
-                        className="block mt-2 px-3 py-1 bg-orange-500 text-black text-xs rounded hover:bg-orange-600 transition-colors mx-auto"
+                        className="block mt-2 px-3 py-1 bg-accentPrimary text-accentPrimary-foreground text-xs rounded hover:bg-accentPrimary/90 transition-colors mx-auto"
                       >
                         Retry
                       </button>
@@ -245,24 +442,84 @@ export default function MCADashboard() {
           </div>
 
           {/* Analysis Actions */}
-          <div className="mt-6">
-            <Card className="bg-neutral-900 border-neutral-700">
+          <div className="mt-6 space-y-4">
+            <Card className="bg-neutral-900 border-neutral-800">
               <CardHeader>
-                <CardTitle className="text-orange-500">Analysis Actions</CardTitle>
-                <CardDescription>Perform sentiment analysis on this draft</CardDescription>
+                <CardTitle className="text-accentPrimary">Analysis Actions</CardTitle>
+                <CardDescription>Generate a sentiment insights report for this draft</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-4">
-                  <button className="px-4 py-2 bg-orange-500 text-black rounded hover:bg-orange-600 transition-colors">
-                    Run Sentiment Analysis
-                  </button>
-                  <button className="px-4 py-2 bg-neutral-700 text-white rounded hover:bg-neutral-600 transition-colors">
+                  <button className="px-4 py-2 bg-neutral-800 text-neutral-100 rounded hover:bg-neutral-700 transition-colors">
                     Generate Report
                   </button>
-                  <button className="px-4 py-2 bg-neutral-700 text-white rounded hover:bg-neutral-600 transition-colors">
-                    Export Data
-                  </button>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-neutral-900 border-neutral-800">
+              <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <CardTitle className="text-accentPrimary">Stakeholder Comments</CardTitle>
+                  <CardDescription>Latest 20 comments with sentiment insights</CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-neutral-700 bg-neutral-900 text-neutral-200 hover:bg-neutral-800 hover:text-white"
+                  onClick={() => loadDraftComments(draft.id)}
+                  disabled={isCommentsLoading}
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${isCommentsLoading ? 'animate-spin text-accentPrimary' : ''}`} />
+                  Refresh
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {isCommentsLoading ? (
+                  <div className="text-center py-10">
+                    <RefreshCw className="h-6 w-6 animate-spin text-accentPrimary mx-auto mb-3" />
+                    <p className="text-sm text-neutral-500">Loading comments...</p>
+                  </div>
+                ) : commentsError ? (
+                  <div className="rounded border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-300">
+                    <p>{commentsError}</p>
+                    <button
+                      onClick={() => loadDraftComments(draft.id)}
+                      className="mt-3 inline-flex items-center gap-2 rounded bg-red-500/20 px-3 py-1 text-xs text-red-200 hover:bg-red-500/30 transition-colors"
+                    >
+                      <RefreshCw className="h-3 w-3" /> Retry
+                    </button>
+                  </div>
+                ) : draftComments.length === 0 ? (
+                  <div className="text-center py-10 text-sm text-neutral-500">
+                    No comments yet for this draft.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {draftComments.map((comment) => (
+                      <div key={comment.id} className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <Badge className="bg-accentPrimary/80 text-accentPrimary-foreground">
+                            {comment.sentiment_analysis ? comment.sentiment_analysis : 'Sentiment unknown'}
+                          </Badge>
+                          {comment.sentiment_score && (
+                            <span className="text-xs font-mono text-neutral-400">
+                              Score: {comment.sentiment_score}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-neutral-200 whitespace-pre-wrap leading-relaxed">
+                          {comment.comment}
+                        </p>
+                        {comment.sentiment_keywords && (
+                          <div className="text-xs text-neutral-400">
+                            Keywords: <span className="font-mono text-neutral-300">{comment.sentiment_keywords}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -274,7 +531,7 @@ export default function MCADashboard() {
     return (
       <div className="p-6">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-orange-500 mb-2">Available Drafts</h2>
+          <h2 className="text-2xl font-bold text-accentPrimary mb-2">Available Drafts</h2>
           <p className="text-neutral-400">Select a draft to view its sentiment analysis dashboard</p>
         </div>
 
@@ -288,12 +545,15 @@ export default function MCADashboard() {
             drafts.map((draft) => (
               <Card
                 key={draft.id}
-                className="bg-neutral-900 border-neutral-700 hover:border-orange-500 transition-colors cursor-pointer"
+                className="bg-neutral-900 border-neutral-800 hover:border-accentPrimary/60 transition-colors cursor-pointer"
                 onClick={() => {
                   setSelectedDraft(draft.id)
                   // Fetch draft details if they haven't been loaded yet
                   if (!draft.draft && !draft.summary) {
                     fetchDraftDetails(draft.id)
+                  }
+                  if (!commentsByDraft[draft.id]) {
+                    loadDraftComments(draft.id)
                   }
                 }}
               >
@@ -303,7 +563,7 @@ export default function MCADashboard() {
                   <div className="flex items-center gap-2">
                     <Badge
                       variant={draft.status === "Active" ? "default" : "secondary"}
-                      className="bg-orange-500 text-black"
+                      className="bg-accentPrimary text-accentPrimary-foreground"
                     >
                       {draft.status || 'Draft'}
                     </Badge>
@@ -329,7 +589,7 @@ export default function MCADashboard() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-neutral-500">Comments:</span>
-                    <span className="text-orange-500 font-mono">
+                    <span className="text-accentPrimary font-mono">
                       {draft.commentsCount?.toLocaleString() || 'N/A'}
                     </span>
                   </div>
@@ -346,79 +606,220 @@ export default function MCADashboard() {
   const renderUploadPage = () => (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-orange-500 mb-2">Upload Comments</h2>
+        <h2 className="text-2xl font-bold text-accentPrimary mb-2">Upload Comments</h2>
         <p className="text-neutral-400">Submit individual comments or bulk upload via CSV</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Single Comment Upload */}
-        <Card className="bg-neutral-900 border-neutral-700">
+        <Card className="bg-neutral-900 border-neutral-800">
           <CardHeader>
-            <CardTitle className="text-orange-500">Single Comment</CardTitle>
+            <CardTitle className="text-accentPrimary">Single Comment</CardTitle>
             <CardDescription>Submit an individual comment for analysis</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">Draft Selection</label>
-              <select className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white">
-                <option>Select a draft...</option>
-                {drafts.map((draft) => (
-                  <option key={draft.id} value={draft.id}>
-                    {draft.title || 'Untitled Draft'}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">Comment Text</label>
-              <textarea
-                className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white h-32 resize-none"
-                placeholder="Enter your comment here..."
-              />
-            </div>
-            <Button className="w-full bg-orange-500 hover:bg-orange-600 text-black">Submit Comment</Button>
+          <CardContent>
+            <form onSubmit={handleCommentSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Draft Selection</label>
+                <select
+                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
+                  value={commentDraftId}
+                  onChange={(e) => setCommentDraftId(e.target.value)}
+                  required
+                >
+                  <option value="">Select a draft...</option>
+                  {drafts.map((draft) => (
+                    <option key={draft.id} value={draft.id}>
+                      {draft.title || "Untitled Draft"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Comment Text</label>
+                <textarea
+                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white h-32 resize-none"
+                  placeholder="Enter your comment here..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-300 mb-2">Sentiment Analysis (optional)</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
+                    placeholder="e.g. positive, neutral, negative"
+                    value={sentimentAnalysis}
+                    onChange={(e) => setSentimentAnalysis(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-300 mb-2">Sentiment Score (optional)</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
+                    placeholder="e.g. 0.75"
+                    value={sentimentScore}
+                    onChange={(e) => setSentimentScore(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Sentiment Keywords (optional)</label>
+                <input
+                  type="text"
+                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
+                  placeholder="Comma-separated keywords"
+                  value={sentimentKeywords}
+                  onChange={(e) => setSentimentKeywords(e.target.value)}
+                />
+              </div>
+              {commentError && (
+                <div className="rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {commentError}
+                </div>
+              )}
+              {commentSuccess && (
+                <div className="rounded border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                  {commentSuccess}
+                </div>
+              )}
+              {lastCommentResponse && (
+                <div className="rounded border border-accentPrimary/40 bg-accentPrimary/10 px-3 py-2 text-sm text-accentPrimary space-y-1">
+                  <div className="font-medium text-accentPrimary-foreground">Saved Comment Details</div>
+                  <div className="text-neutral-200">ID: <span className="font-mono text-sm">{lastCommentResponse.id}</span></div>
+                  <div className="text-neutral-200">
+                    Sentiment: {lastCommentResponse.sentiment_analysis || 'N/A'} (score: {lastCommentResponse.sentiment_score || 'N/A'})
+                  </div>
+                  {lastCommentResponse.sentiment_keywords && (
+                    <div className="text-neutral-200">Keywords: {lastCommentResponse.sentiment_keywords}</div>
+                  )}
+                </div>
+              )}
+              <Button
+                type="submit"
+                className="w-full bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={commentLoading || drafts.length === 0}
+                title={drafts.length === 0 ? "Upload a draft first" : undefined}
+              >
+                {commentLoading ? 'Submitting...' : 'Submit Comment'}
+              </Button>
+            </form>
           </CardContent>
         </Card>
 
         {/* CSV Upload */}
-        <Card className="bg-neutral-900 border-neutral-700">
+        <Card className="bg-neutral-900 border-neutral-800">
           <CardHeader>
-            <CardTitle className="text-orange-500">Bulk Upload</CardTitle>
+            <CardTitle className="text-accentPrimary">Bulk Upload</CardTitle>
             <CardDescription>Upload multiple comments via CSV file</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">Draft Selection</label>
-              <select
-                className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
-                value={bulkDraftId}
-                onChange={(e) => setBulkDraftId(e.target.value)}
-              >
-                <option value="">Select a draft...</option>
-                {drafts.map((draft) => (
-                  <option key={draft.id} value={draft.id}>
-                    {draft.title || 'Untitled Draft'}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">CSV File</label>
-              <div className="border-2 border-dashed border-neutral-600 rounded-lg p-8 text-center hover:border-orange-500 transition-colors">
-                <Upload className="w-12 h-12 text-neutral-500 mx-auto mb-4" />
-                <p className="text-neutral-400 mb-2">Drop your CSV file here or click to browse</p>
-                <p className="text-xs text-neutral-500">
-                  Supported format: CSV with columns: draft_id, comment_text, stakeholder_id
-                </p>
+          <CardContent>
+            <form onSubmit={handleBulkCsvSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Draft Selection</label>
+                <select
+                  className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
+                  value={bulkDraftId}
+                  onChange={(e) => setBulkDraftId(e.target.value)}
+                  required
+                >
+                  <option value="">Select a draft...</option>
+                  {drafts.map((draft) => (
+                    <option key={draft.id} value={draft.id}>
+                      {draft.title || "Untitled Draft"}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </div>
-            <Button
-              className="w-full bg-orange-500 hover:bg-orange-600 text-black disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!bulkDraftId}
-              title={!bulkDraftId ? "Select a draft first" : undefined}
-            >
-              Upload CSV
-            </Button>
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">CSV File</label>
+                <label
+                  htmlFor="bulk-comment-file"
+                  className={`flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-8 text-center transition-colors ${bulkCommentFile ? 'border-accentPrimary/70 bg-accentPrimary/5' : 'border-neutral-700 hover:border-accentPrimary/70'}`}
+                >
+                  <Upload className="w-12 h-12 text-neutral-500" />
+                  <div className="space-y-1">
+                    <p className="text-neutral-300 text-sm font-medium">
+                      {bulkCommentFile ? bulkCommentFile.name : 'Drop your CSV file here or click to browse'}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      Supported format: CSV with columns such as comment, sentiment_analysis, sentiment_score, sentiment_keywords
+                    </p>
+                  </div>
+                  <input
+                    id="bulk-comment-file"
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={handleBulkFileChange}
+                    ref={bulkFileInputRef}
+                  />
+                </label>
+                {bulkCommentFile && (
+                  <div className="flex items-center justify-between rounded border border-neutral-700 bg-neutral-800/60 px-3 py-2 mt-3 text-xs text-neutral-300">
+                    <span className="truncate">Selected: {bulkCommentFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBulkCommentFile(null)
+                        setBulkCommentError(null)
+                        setBulkCommentSuccess(null)
+                        setBulkCommentResult(null)
+                        if (bulkFileInputRef.current) {
+                          bulkFileInputRef.current.value = ''
+                        }
+                      }}
+                      className="text-accentPrimary hover:text-accentPrimary/80"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+              {bulkCommentError && (
+                <div className="rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {bulkCommentError}
+                </div>
+              )}
+              {bulkCommentSuccess && (
+                <div className="rounded border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                  {bulkCommentSuccess}
+                </div>
+              )}
+              <Button
+                type="submit"
+                className="w-full bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={bulkCommentLoading || !bulkDraftId || !bulkCommentFile}
+                title={!bulkDraftId ? 'Select a draft first' : undefined}
+              >
+                {bulkCommentLoading ? 'Uploading...' : 'Upload CSV'}
+              </Button>
+            </form>
+
+            {bulkCommentResult && bulkCommentResult.length > 0 && (
+              <div className="mt-6 space-y-3 text-sm text-neutral-200">
+                <div className="text-neutral-400 text-xs uppercase tracking-wide">Preview ({Math.min(3, bulkCommentResult.length)} of {bulkCommentResult.length})</div>
+                <div className="space-y-3">
+                  {bulkCommentResult.slice(0, 3).map((comment) => (
+                    <div key={comment.id} className="rounded border border-neutral-700 bg-neutral-900/80 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Badge className="bg-accentPrimary/80 text-accentPrimary-foreground text-xs">
+                          {comment.sentiment_analysis || 'N/A'}
+                        </Badge>
+                        {comment.sentiment_score && (
+                          <span className="text-xs font-mono text-neutral-400">Score: {comment.sentiment_score}</span>
+                        )}
+                      </div>
+                      <p className="mt-2 text-xs leading-relaxed text-neutral-300">{comment.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -428,13 +829,13 @@ export default function MCADashboard() {
   const renderProfilePage = () => (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-orange-500 mb-2">My Comments</h2>
+        <h2 className="text-2xl font-bold text-accentPrimary mb-2">My Comments</h2>
         <p className="text-neutral-400">Your submitted comments across all drafts</p>
       </div>
 
-      <Card className="bg-neutral-900 border-neutral-700">
+      <Card className="bg-neutral-900 border-neutral-800">
         <CardHeader>
-          <CardTitle className="text-orange-500">Recent Comments</CardTitle>
+          <CardTitle className="text-accentPrimary">Recent Comments</CardTitle>
           <CardDescription>Latest activity</CardDescription>
         </CardHeader>
         <CardContent>
@@ -480,7 +881,7 @@ export default function MCADashboard() {
       try {
         const resp = await uploadDraft(newDraftFile)
         const uploadDate = new Date().toISOString().slice(0, 10)
-        const created = {
+        const created: Draft = {
           id: resp.id,
           title: newDraftFile.name.replace(/\.pdf$/i, ''),
           uploadDate,
@@ -490,12 +891,12 @@ export default function MCADashboard() {
           summary: resp.summary, // Include summary from upload response
           user_id: resp.user_id,
         }
-        setDrafts((prev: any[]) => [created, ...prev])
+        setDrafts((prev) => [created, ...prev])
         setActiveSection('dashboard')
         setSelectedDraft(created.id)
         setNewDraftFile(null)
-      } catch (err: any) {
-        const raw = (err?.message || 'Failed to upload draft') as string
+      } catch (error: unknown) {
+        const raw = error instanceof Error ? error.message : 'Failed to upload draft'
         const lower = raw.toLowerCase()
         if (lower.includes('unauthorized') || lower.includes('invalid authentication') || lower.includes('401') || lower.includes('not authenticated')) {
           setNewDraftError('Authentication required. Please set your bearer token in Settings → Authentication section before uploading.')
@@ -509,12 +910,12 @@ export default function MCADashboard() {
     return (
       <div className="p-6 max-w-3xl mx-auto">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-orange-500 mb-2">Add Draft</h2>
+          <h2 className="text-2xl font-bold text-accentPrimary mb-2">Add Draft</h2>
           <p className="text-neutral-400">Create a new draft entry for analysis</p>
         </div>
-        <Card className="bg-neutral-900 border-neutral-700">
+        <Card className="bg-neutral-900 border-neutral-800">
           <CardHeader>
-            <CardTitle className="text-orange-500">Upload Draft (PDF)</CardTitle>
+            <CardTitle className="text-accentPrimary">Upload Draft (PDF)</CardTitle>
             <CardDescription>Only a PDF file is required</CardDescription>
           </CardHeader>
           <CardContent>
@@ -525,7 +926,7 @@ export default function MCADashboard() {
                   type="file"
                   accept="application/pdf"
                   onChange={onFileChange}
-                  className="block w-full text-sm text-neutral-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-orange-500 file:text-black hover:file:bg-orange-600"
+                  className="block w-full text-sm text-neutral-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-accentPrimary file:text-accentPrimary-foreground hover:file:bg-accentPrimary/90"
                 />
                 <p className="text-xs text-neutral-500 mt-2">Only PDF files up to 20MB are supported.</p>
                 {newDraftFile && (
@@ -564,7 +965,7 @@ export default function MCADashboard() {
                             const isExpired = exp < now
                             
                             alert(`Token: Present\nExpires: ${new Date(exp * 1000).toLocaleString()}\nExpired: ${isExpired ? 'Yes' : 'No'}`)
-                          } catch (e) {
+                            } catch {
                             alert(`Token: Present but invalid format`)
                           }
                         } else {
@@ -595,7 +996,13 @@ export default function MCADashboard() {
                 )}
               </div>
 
-              <Button type="submit" disabled={!newDraftFile || newDraftLoading || !isAuthed} className="w-full bg-orange-500 hover:bg-orange-600 text-black disabled:opacity-50 disabled:cursor-not-allowed">{newDraftLoading ? 'Uploading…' : 'Add Draft'}</Button>
+              <Button
+                type="submit"
+                disabled={!newDraftFile || newDraftLoading || !isAuthed}
+                className="w-full bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {newDraftLoading ? 'Uploading…' : 'Add Draft'}
+              </Button>
             </form>
           </CardContent>
         </Card>
@@ -619,13 +1026,13 @@ export default function MCADashboard() {
     return (
       <div className="p-6 max-w-2xl mx-auto">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-orange-500 mb-2">Settings</h2>
+          <h2 className="text-2xl font-bold text-accentPrimary mb-2">Settings</h2>
           <p className="text-neutral-400">Update your account details (frontend only)</p>
         </div>
 
-        <Card className="bg-neutral-900 border-neutral-700">
+        <Card className="bg-neutral-900 border-neutral-800">
           <CardHeader>
-            <CardTitle className="text-orange-500">Account</CardTitle>
+            <CardTitle className="text-accentPrimary">Account</CardTitle>
             <CardDescription>Change username and password</CardDescription>
           </CardHeader>
           <CardContent>
@@ -672,8 +1079,7 @@ export default function MCADashboard() {
                   {settingsAlert.text}
                 </div>
               )}
-
-              <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-black">
+              <Button type="submit" className="w-full bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground">
                 Save Settings
               </Button>
               <p className="text-xs text-neutral-500 text-center mt-2">
@@ -684,7 +1090,7 @@ export default function MCADashboard() {
             <div className="mt-8 border-t border-neutral-800 pt-6">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <div className="text-orange-500 font-medium">Authentication</div>
+                  <div className="text-accentPrimary font-medium">Authentication</div>
                   <div className="text-xs text-neutral-500">Status: {isAuthed ? <span className="text-green-400">Authenticated</span> : <span className="text-red-400">Not authenticated</span>}</div>
                 </div>
               </div>
@@ -697,7 +1103,7 @@ export default function MCADashboard() {
                   className="w-full p-3 bg-neutral-800 border border-neutral-600 rounded text-white"
                 />
                 <div className="flex gap-2">
-                  <Button type="submit" className="bg-orange-500 hover:bg-orange-600 text-black">Save Token</Button>
+                  <Button type="submit" className="bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground">Save Token</Button>
                   <Button type="button" variant="secondary" onClick={handleTokenClear} className="bg-neutral-700 hover:bg-neutral-600">Clear Token</Button>
                 </div>
                 <p className="text-xs text-neutral-500">
@@ -721,14 +1127,14 @@ export default function MCADashboard() {
         <div className="p-4">
           <div className="flex items-center justify-between mb-8">
             <div className={`${sidebarCollapsed ? "hidden" : "block"}`}>
-              <h1 className="text-orange-500 font-bold text-lg tracking-wider">MCA eCONSULTATION</h1>
+              <h1 className="text-accentPrimary font-bold text-lg tracking-wider">MCA eCONSULTATION</h1>
               <p className="text-neutral-500 text-xs">SENTIMENT ANALYSIS v1.0</p>
             </div>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="text-neutral-400 hover:text-orange-500"
+              className="text-neutral-400 hover:text-accentPrimary"
             >
               <ChevronRight
                 className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform ${sidebarCollapsed ? "" : "rotate-180"
@@ -747,7 +1153,7 @@ export default function MCADashboard() {
                 key={item.id}
                 onClick={() => setActiveSection(item.id)}
                 className={`w-full flex items-center gap-3 p-3 rounded transition-colors ${activeSection === item.id
-                  ? "bg-orange-500 text-white"
+                  ? "bg-accentPrimary text-accentPrimary-foreground"
                   : "text-neutral-400 hover:text-white hover:bg-neutral-800"
                   }`}
               >
@@ -767,7 +1173,7 @@ export default function MCADashboard() {
                     key={item.id}
                     onClick={() => setActiveSection(item.id)}
                     className={`w-full flex items-center gap-3 p-3 rounded transition-colors ${activeSection === item.id
-                      ? "bg-orange-500 text-white"
+                      ? "bg-accentPrimary text-accentPrimary-foreground"
                       : "text-neutral-400 hover:text-white hover:bg-neutral-800"
                       }`}
                   >
@@ -810,7 +1216,7 @@ export default function MCADashboard() {
           <div className="flex items-center gap-4">
             <div className="text-sm text-neutral-400">
               MCA eCONSULTATION /{" "}
-              <span className="text-orange-500">{activeSection.toUpperCase()}</span>
+              <span className="text-accentPrimary">{activeSection.toUpperCase()}</span>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -820,10 +1226,10 @@ export default function MCADashboard() {
             <div className={`text-[10px] px-2 py-1 rounded ${isAuthed ? 'bg-green-900/30 text-green-300 border border-green-600' : 'bg-red-900/30 text-red-300 border border-red-600'}`}>
               {isAuthed ? 'Authenticated' : 'Not Authenticated'}
             </div>
-            <Button variant="ghost" size="icon" className="text-neutral-400 hover:text-orange-500">
+            <Button variant="ghost" size="icon" className="text-neutral-400 hover:text-accentPrimary">
               <RefreshCw className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-neutral-400 hover:text-orange-500">
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-neutral-400 hover:text-accentPrimary">
               <LogOut className="w-4 h-4" />
             </Button>
           </div>

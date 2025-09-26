@@ -31,8 +31,8 @@ export default function SignupPage() {
                 }
             } catch { }
             router.replace('/login')
-        } catch (err: any) {
-            setError(err.message || 'Signup failed')
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Signup failed')
         } finally {
             setLoading(false)
         }
@@ -41,7 +41,7 @@ export default function SignupPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-black text-white p-6">
             <div className="w-full max-w-md bg-neutral-900 border border-neutral-700 rounded-lg p-6">
-                <h1 className="text-2xl font-bold text-orange-500 mb-2">Create your account</h1>
+                <h1 className="text-2xl font-bold text-accentPrimary mb-2">Create your account</h1>
                 <p className="text-neutral-400 mb-6">Sign up to get started</p>
                 <form onSubmit={onSubmit} className="space-y-4">
                     <div>
@@ -59,13 +59,13 @@ export default function SignupPage() {
                     {error && (
                         <div className="text-sm p-3 rounded border bg-red-900/30 border-red-600 text-red-300">{error}</div>
                     )}
-                    <Button type="submit" disabled={loading} className="w-full bg-orange-500 hover:bg-orange-600 text-black">
+                    <Button type="submit" disabled={loading} className="w-full bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground">
                         {loading ? 'Creating account…' : 'Sign Up'}
                     </Button>
                 </form>
                 <p className="text-sm text-neutral-400 mt-4">
                     Already have an account?{' '}
-                    <a href="/login" className="text-orange-500 hover:underline">Sign in</a>
+                    <a href="/login" className="text-accentPrimary hover:underline">Sign in</a>
                 </p>
             </div>
         </div>

@@ -106,16 +106,16 @@ export default function CommandCenterPage() {
               ].map((log, index) => (
                 <div
                   key={index}
-                  className="text-xs border-l-2 border-orange-500 pl-3 hover:bg-neutral-800 p-2 rounded transition-colors"
+                  className="text-xs border-l-2 border-accentPrimary pl-3 hover:bg-neutral-800 p-2 rounded transition-colors"
                 >
                   <div className="text-neutral-500 font-mono">{log.time}</div>
                   <div className="text-white">
-                    Agent <span className="text-orange-500 font-mono">{log.agent}</span> {log.action}{" "}
+                    Agent <span className="text-accentPrimary font-mono">{log.agent}</span> {log.action}{" "}
                     <span className="text-white font-mono">{log.location}</span>
                     {log.target && (
                       <span>
                         {" "}
-                        with agent <span className="text-orange-500 font-mono">{log.target}</span>
+                        with agent <span className="text-accentPrimary font-mono">{log.target}</span>
                       </span>
                     )}
                   </div>
@@ -152,7 +152,7 @@ export default function CommandCenterPage() {
                 <span># 2025-06-17 14:23 UTC</span>
               </div>
               <div className="text-white">{"> [AGT:gh0stfire] ::: INIT >> ^^^ loading secure channel"}</div>
-              <div className="text-orange-500">{"> CH#2 | 1231.9082464.500...xR3"}</div>
+              <div className="text-accentPrimary">{"> CH#2 | 1231.9082464.500...xR3"}</div>
               <div className="text-white">{"> KEY LOCKED"}</div>
               <div className="text-neutral-400">
                 {'> MSG >> "...mission override initiated... awaiting delta node clearance"'}
@@ -182,7 +182,7 @@ export default function CommandCenterPage() {
                 <polyline
                   points="0,120 50,100 100,110 150,90 200,95 250,85 300,100 350,80"
                   fill="none"
-                  stroke="#f97316"
+                  stroke="hsl(var(--accent-primary))"
                   strokeWidth="2"
                 />
                 <polyline

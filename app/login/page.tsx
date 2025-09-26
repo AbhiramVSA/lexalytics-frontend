@@ -25,8 +25,8 @@ export default function LoginPage() {
             setToken(res.token)
             const next = searchParams?.get('next') || '/'
             router.replace(next)
-        } catch (err: any) {
-            setError(err.message || 'Login failed')
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Login failed')
         } finally {
             setLoading(false)
         }
@@ -35,11 +35,11 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-black text-white p-6">
             <div className="w-full max-w-md bg-neutral-900 border border-neutral-700 rounded-lg p-6">
-                <h1 className="text-2xl font-bold text-orange-500 mb-2">Welcome back</h1>
+                     <h1 className="text-2xl font-bold text-accentPrimary mb-2">Welcome back</h1>
                 <p className="text-neutral-400 mb-6">Sign in to access your dashboard</p>
                 {process.env.NEXT_PUBLIC_ENABLE_DEMO_AUTH === 'true' && (
                     <div className="text-xs text-neutral-400 mb-4">
-                        Demo login enabled — use <span className="text-orange-400">{process.env.NEXT_PUBLIC_DEMO_EMAIL || 'demo@example.com'}</span> / <span className="text-orange-400">{process.env.NEXT_PUBLIC_DEMO_PASSWORD || 'demo1234'}</span>
+                        Demo login enabled — use <span className="text-accentPrimary">{process.env.NEXT_PUBLIC_DEMO_EMAIL || 'demo@example.com'}</span> / <span className="text-accentPrimary">{process.env.NEXT_PUBLIC_DEMO_PASSWORD || 'demo1234'}</span>
                     </div>
                 )}
                 <form onSubmit={onSubmit} className="space-y-4">
@@ -54,13 +54,13 @@ export default function LoginPage() {
                     {error && (
                         <div className="text-sm p-3 rounded border bg-red-900/30 border-red-600 text-red-300">{error}</div>
                     )}
-                    <Button type="submit" disabled={loading} className="w-full bg-orange-500 hover:bg-orange-600 text-black">
+                    <Button type="submit" disabled={loading} className="w-full bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground">
                         {loading ? 'Signing in…' : 'Sign In'}
                     </Button>
                 </form>
                 <p className="text-sm text-neutral-400 mt-4">
                     Don&apos;t have an account?{' '}
-                    <a href="/signup" className="text-orange-500 hover:underline">Create one</a>
+                    <a href="/signup" className="text-accentPrimary hover:underline">Create one</a>
                 </p>
             </div>
         </div>

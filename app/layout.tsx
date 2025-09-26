@@ -6,9 +6,9 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "MCA eConsultation - Sentiment Analysis Dashboard",
-  description: "Ministry of Corporate Affairs eConsultation sentiment analysis system",
-    generator: 'v0.app'
+  title: "Sentinel Ops Dashboard",
+  description: "Operational intelligence console for sentiment and consultation analytics",
+  generator: "v0.app",
 }
 
 export default function RootLayout({
@@ -17,8 +17,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-black text-white antialiased`}>{children}</body>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body
+        className={`${inter.className} bg-background text-foreground antialiased min-h-screen`}
+      >
+        {children}
+      </body>
     </html>
   )
 }

@@ -18,10 +18,27 @@ import {
   Settings,
 } from "lucide-react"
 
-export default function SystemsPage() {
-  const [selectedSystem, setSelectedSystem] = useState(null)
+type SystemStatus = "online" | "warning" | "maintenance" | "offline"
+type SystemType = "Primary Server" | "Database" | "Firewall" | "Network" | "Storage" | "Processing"
 
-  const systems = [
+interface SystemSummary {
+  id: string
+  name: string
+  type: SystemType
+  status: SystemStatus
+  health: number
+  cpu: number
+  memory: number
+  storage: number
+  uptime: string
+  location: string
+  lastMaintenance: string
+}
+
+export default function SystemsPage() {
+  const [selectedSystem, setSelectedSystem] = useState<SystemSummary | null>(null)
+
+  const systems: SystemSummary[] = [
     {
       id: "SYS-001",
       name: "COMMAND SERVER ALPHA",
@@ -102,12 +119,12 @@ export default function SystemsPage() {
     },
   ]
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: SystemStatus) => {
     switch (status) {
       case "online":
         return "bg-white/20 text-white"
       case "warning":
-        return "bg-orange-500/20 text-orange-500"
+        return "bg-accentPrimary/20 text-accentPrimary"
       case "maintenance":
         return "bg-neutral-500/20 text-neutral-300"
       case "offline":
@@ -117,7 +134,7 @@ export default function SystemsPage() {
     }
   }
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: SystemStatus) => {
     switch (status) {
       case "online":
         return <CheckCircle className="w-4 h-4" />
@@ -132,7 +149,7 @@ export default function SystemsPage() {
     }
   }
 
-  const getSystemIcon = (type) => {
+  const getSystemIcon = (type: SystemType) => {
     switch (type) {
       case "Primary Server":
         return <Server className="w-6 h-6" />
@@ -151,10 +168,10 @@ export default function SystemsPage() {
     }
   }
 
-  const getHealthColor = (health) => {
+  const getHealthColor = (health: number) => {
     if (health >= 95) return "text-white"
     if (health >= 85) return "text-white"
-    if (health >= 70) return "text-orange-500"
+    if (health >= 70) return "text-accentPrimary"
     return "text-red-500"
   }
 
@@ -167,8 +184,8 @@ export default function SystemsPage() {
           <p className="text-sm text-neutral-400">Infrastructure health and performance monitoring</p>
         </div>
         <div className="flex gap-2">
-          <Button className="bg-orange-500 hover:bg-orange-600 text-white">System Scan</Button>
-          <Button className="bg-orange-500 hover:bg-orange-600 text-white">Maintenance Mode</Button>
+          <Button className="bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground">System Scan</Button>
+          <Button className="bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground">Maintenance Mode</Button>
         </div>
       </div>
 
@@ -191,9 +208,9 @@ export default function SystemsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-neutral-400 tracking-wider">WARNINGS</p>
-                <p className="text-2xl font-bold text-orange-500 font-mono">3</p>
+                <p className="text-2xl font-bold text-accentPrimary font-mono">3</p>
               </div>
-              <AlertTriangle className="w-8 h-8 text-orange-500" />
+              <AlertTriangle className="w-8 h-8 text-accentPrimary" />
             </div>
           </CardContent>
         </Card>
@@ -228,7 +245,7 @@ export default function SystemsPage() {
         {systems.map((system) => (
           <Card
             key={system.id}
-            className="bg-neutral-900 border-neutral-700 hover:border-orange-500/50 transition-colors cursor-pointer"
+            className="bg-neutral-900 border-neutral-700 hover:border-accentPrimary/50 transition-colors cursor-pointer"
             onClick={() => setSelectedSystem(system)}
           >
             <CardHeader className="pb-3">
@@ -259,7 +276,7 @@ export default function SystemsPage() {
                   <div className="text-white font-mono">{system.cpu}%</div>
                   <div className="w-full bg-neutral-800 rounded-full h-1 mt-1">
                     <div
-                      className="bg-orange-500 h-1 rounded-full transition-all duration-300"
+                      className="bg-accentPrimary h-1 rounded-full transition-all duration-300"
                       style={{ width: `${system.cpu}%` }}
                     ></div>
                   </div>
@@ -269,7 +286,7 @@ export default function SystemsPage() {
                   <div className="text-white font-mono">{system.memory}%</div>
                   <div className="w-full bg-neutral-800 rounded-full h-1 mt-1">
                     <div
-                      className="bg-orange-500 h-1 rounded-full transition-all duration-300"
+                      className="bg-accentPrimary h-1 rounded-full transition-all duration-300"
                       style={{ width: `${system.memory}%` }}
                     ></div>
                   </div>
@@ -279,7 +296,7 @@ export default function SystemsPage() {
                   <div className="text-white font-mono">{system.storage}%</div>
                   <div className="w-full bg-neutral-800 rounded-full h-1 mt-1">
                     <div
-                      className="bg-orange-500 h-1 rounded-full transition-all duration-300"
+                      className="bg-accentPrimary h-1 rounded-full transition-all duration-300"
                       style={{ width: `${system.storage}%` }}
                     ></div>
                   </div>
@@ -372,7 +389,7 @@ export default function SystemsPage() {
                         </div>
                         <div className="w-full bg-neutral-800 rounded-full h-2">
                           <div
-                            className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                            className="bg-accentPrimary h-2 rounded-full transition-all duration-300"
                             style={{ width: `${selectedSystem.cpu}%` }}
                           ></div>
                         </div>
@@ -385,7 +402,7 @@ export default function SystemsPage() {
                         </div>
                         <div className="w-full bg-neutral-800 rounded-full h-2">
                           <div
-                            className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                            className="bg-accentPrimary h-2 rounded-full transition-all duration-300"
                             style={{ width: `${selectedSystem.memory}%` }}
                           ></div>
                         </div>
@@ -398,7 +415,7 @@ export default function SystemsPage() {
                         </div>
                         <div className="w-full bg-neutral-800 rounded-full h-2">
                           <div
-                            className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                            className="bg-accentPrimary h-2 rounded-full transition-all duration-300"
                             style={{ width: `${selectedSystem.storage}%` }}
                           ></div>
                         </div>
@@ -409,7 +426,7 @@ export default function SystemsPage() {
               </div>
 
               <div className="flex gap-2 pt-4 border-t border-neutral-700">
-                <Button className="bg-orange-500 hover:bg-orange-600 text-white">Restart System</Button>
+                <Button className="bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground">Restart System</Button>
                 <Button
                   variant="outline"
                   className="border-neutral-700 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-300 bg-transparent"
