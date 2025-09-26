@@ -1,3 +1,6 @@
+import { apiUrl } from './config'
+import { setToken, clearToken } from './token'
+
 type JsonRecord = Record<string, unknown>
 
 export type AuthResponse = {
@@ -6,9 +9,6 @@ export type AuthResponse = {
     user?: JsonRecord
     error?: string
 }
-
-const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://52.201.231.42"
-import { setToken, clearToken } from './token'
 
 const getStringField = (payload: unknown, key: string): string | undefined => {
     if (payload && typeof payload === 'object') {
@@ -19,7 +19,7 @@ const getStringField = (payload: unknown, key: string): string | undefined => {
 }
 
 async function request<T>(path: string, body: unknown): Promise<T> {
-    const res = await fetch(`${baseUrl}${path}`, {
+    const res = await fetch(apiUrl(path), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

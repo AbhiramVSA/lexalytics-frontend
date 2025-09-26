@@ -1,6 +1,5 @@
+import { apiUrl } from './config'
 import { getAuthHeader } from './token'
-
-const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://52.201.231.42'
 
 export type CreateDraftCommentRequest = {
     comment: string
@@ -80,7 +79,7 @@ export async function createDraftComment(
 
     console.log('Sending comment payload:', requestBody)
 
-    const res = await fetch(`${baseUrl}/api/v1/comment/draft/${draftId}`, {
+    const res = await fetch(apiUrl(`/api/v1/comment/draft/${draftId}`), {
         method: 'POST',
         headers,
         body: JSON.stringify(requestBody),
@@ -136,7 +135,7 @@ export async function listDraftComments(draftId: string, limit = 20): Promise<Li
         ...authHeader,
     }
 
-    const url = `${baseUrl}/api/v1/comment/draft/${draftId}?limit=${limit}`
+    const url = apiUrl(`/api/v1/comment/draft/${draftId}?limit=${limit}`)
     console.log('Requesting comment list from:', url)
 
     const res = await fetch(url, {
@@ -216,7 +215,7 @@ export async function uploadDraftCommentsCsv(
         ...authHeader,
     }
 
-    const url = `${baseUrl}/api/v1/comment/draft/${draftId}/csv`
+    const url = apiUrl(`/api/v1/comment/draft/${draftId}/csv`)
     console.log('Uploading CSV to:', url)
 
     const res = await fetch(url, {

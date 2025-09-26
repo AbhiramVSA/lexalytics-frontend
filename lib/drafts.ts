@@ -1,6 +1,5 @@
+import { apiUrl } from './config'
 import { getAuthHeader } from './token'
-
-const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://52.201.231.42'
 
 export type UploadDraftResponse = {
     id: string
@@ -47,10 +46,10 @@ export async function uploadDraft(file: File): Promise<UploadDraftResponse> {
     form.append('file', file, file.name)
 
     const authHeader = getAuthHeader()
-    console.log('Making request to:', `${baseUrl}/api/v1/draft/`)
+    console.log('Making request to:', apiUrl('/api/v1/draft/'))
     console.log('Auth header:', authHeader)
     console.log('Expected curl format:')
-    console.log('  URL: http://52.201.231.42/api/v1/draft/')
+    console.log('  URL:', apiUrl('/api/v1/draft/'))
     console.log('  Headers: accept: application/json, Authorization: <token> (optional for public uploads)')
     console.log('  FormData: file field with PDF')
     
@@ -65,7 +64,7 @@ export async function uploadDraft(file: File): Promise<UploadDraftResponse> {
     }
 
     console.log('Sending request...')
-    const res = await fetch(`${baseUrl}/api/v1/draft/`, {
+    const res = await fetch(apiUrl('/api/v1/draft/'), {
         method: 'POST',
         body: form,
         headers,
@@ -108,7 +107,7 @@ export async function uploadDraft(file: File): Promise<UploadDraftResponse> {
 
 export async function getDraft(draftId: string): Promise<GetDraftResponse> {
     const authHeader = getAuthHeader()
-    console.log('Making request to fetch draft:', `${baseUrl}/api/v1/draft/drafts/${draftId}`)
+    console.log('Making request to fetch draft:', apiUrl(`/api/v1/draft/drafts/${draftId}`))
     console.log('Auth header:', authHeader)
     
     if (!authHeader.Authorization) {
@@ -121,7 +120,7 @@ export async function getDraft(draftId: string): Promise<GetDraftResponse> {
     }
 
     console.log('Fetching draft details...')
-    const res = await fetch(`${baseUrl}/api/v1/draft/drafts/${draftId}`, {
+    const res = await fetch(apiUrl(`/api/v1/draft/drafts/${draftId}`), {
         method: 'GET',
         headers,
     })
@@ -169,7 +168,7 @@ export async function getDraft(draftId: string): Promise<GetDraftResponse> {
 
 export async function listDrafts(limit = 20): Promise<ListDraftsResponse> {
     const authHeader = getAuthHeader()
-    console.log('Making request to list drafts:', `${baseUrl}/api/v1/draft/?limit=${limit}`)
+    console.log('Making request to list drafts:', apiUrl(`/api/v1/draft/?limit=${limit}`))
     console.log('Auth header:', authHeader)
     
     if (!authHeader.Authorization) {
@@ -182,7 +181,7 @@ export async function listDrafts(limit = 20): Promise<ListDraftsResponse> {
     }
 
     console.log('Fetching drafts list...')
-    const res = await fetch(`${baseUrl}/api/v1/draft/?limit=${limit}`, {
+    const res = await fetch(apiUrl(`/api/v1/draft/?limit=${limit}`), {
         method: 'GET',
         headers,
     })
@@ -229,7 +228,7 @@ export async function listDrafts(limit = 20): Promise<ListDraftsResponse> {
 
 export async function deleteDraft(draftId: string): Promise<void> {
     const authHeader = getAuthHeader()
-    console.log('Making request to delete draft:', `${baseUrl}/api/v1/draft/${draftId}`)
+    console.log('Making request to delete draft:', apiUrl(`/api/v1/draft/${draftId}`))
     console.log('Auth header:', authHeader)
     
     if (!authHeader.Authorization) {
@@ -242,7 +241,7 @@ export async function deleteDraft(draftId: string): Promise<void> {
     }
 
     console.log('Deleting draft...')
-    const res = await fetch(`${baseUrl}/api/v1/draft/${draftId}`, {
+    const res = await fetch(apiUrl(`/api/v1/draft/${draftId}`), {
         method: 'DELETE',
         headers,
     })

@@ -54,11 +54,11 @@ Create `.env.local` at the project root:
 
 \`\`\`bash
 # Base URL for your backend API (auth, drafts, comments, etc.)
-NEXT_PUBLIC_API_BASE_URL=http://52.201.231.42
+NEXT_PUBLIC_API_BASE_URL=https://api.lexalytics.me
 
 # Optional: separate base for sentiment data if used by lib/sentiment-api.ts
 # If unset, it defaults to http://localhost:8000 in that file
-# NEXT_PUBLIC_API_URL=http://52.201.231.42
+# NEXT_PUBLIC_API_URL=https://api.lexalytics.me
 
 # (Optional) Demo auth flags for local-only testing without a backend
 # NEXT_PUBLIC_ENABLE_DEMO_AUTH=true
@@ -108,7 +108,7 @@ Security recommendation: In production, prefer setting an HttpOnly `authToken` c
 
 ## Backend API (assumed implemented)
 
-Base URL: `${NEXT_PUBLIC_API_BASE_URL}` (default `http://52.201.231.42`)
+Base URL: `${NEXT_PUBLIC_API_BASE_URL}` (default `https://api.lexalytics.me`)
 
 - Auth
   - POST `/api/v1/login/register` — body `{ username, email, password }` → `{ id, username, email }`
@@ -132,7 +132,7 @@ Note: Endpoint paths are provided for integration guidance and can be adapted to
 
 ## Environment Variables
 
-- `NEXT_PUBLIC_API_BASE_URL`: Backend base for auth/drafts/comments (e.g., `http://52.201.231.42`)
+- `NEXT_PUBLIC_API_BASE_URL`: Backend base for auth/drafts/comments (default `https://api.lexalytics.me`)
 - `NEXT_PUBLIC_API_URL` (optional): Base for sentiment API (`lib/sentiment-api.ts`)
 - Demo (optional for local dev only):
   - `NEXT_PUBLIC_ENABLE_DEMO_AUTH`, `NEXT_PUBLIC_DEMO_EMAIL`, `NEXT_PUBLIC_DEMO_PASSWORD`
