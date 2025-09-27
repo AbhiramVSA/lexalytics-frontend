@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { login } from '@/lib/auth-client'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { setToken } from '@/lib/token'
+import { getToken, setToken } from '@/lib/token'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -15,6 +15,18 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return
+        }
+        const existingToken = getToken()
+        if (existingToken) {
+            const rawNext = searchParams?.get('next')
+            const next = rawNext && rawNext !== '/login' ? rawNext : '/dashboard'
+            router.replace(next)
+        }
+    }, [router, searchParams])
+
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError(null)
@@ -23,7 +35,8 @@ export default function LoginPage() {
             const res = await login(email, password)
             if (!res.token) throw new Error('No token returned')
             setToken(res.token)
-            const next = searchParams?.get('next') || '/'
+            const rawNext = searchParams?.get('next')
+            const next = rawNext && rawNext !== '/login' ? rawNext : '/dashboard'
             router.replace(next)
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'Login failed')

@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { signup, login } from '@/lib/auth-client'
-import { setToken } from '@/lib/token'
+import { getToken, setToken } from '@/lib/token'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
@@ -14,6 +14,15 @@ export default function SignupPage() {
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return
+        }
+        if (getToken()) {
+            router.replace('/dashboard')
+        }
+    }, [router])
 
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -26,7 +35,7 @@ export default function SignupPage() {
                 const res = await login(email, password)
                 if (res.token) {
                     setToken(res.token)
-                    router.replace('/')
+                    router.replace('/dashboard')
                     return
                 }
             } catch { }
