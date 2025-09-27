@@ -48,33 +48,35 @@ export default function SignupPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-black text-white p-6">
-            <div className="w-full max-w-md bg-neutral-900 border border-neutral-700 rounded-lg p-6">
-                <h1 className="text-2xl font-bold text-accentPrimary mb-2">Create your account</h1>
-                <p className="text-neutral-400 mb-6">Sign up to get started</p>
+        <div className="relative flex min-h-screen items-center justify-center bg-black p-6 text-white">
+            <div className="pointer-events-none absolute inset-0 -z-20 bg-[radial-gradient(circle_at_15%_20%,_rgba(16,185,129,0.2),_transparent_55%)] opacity-80 blur-3xl" />
+            <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_80%_20%,_rgba(59,130,246,0.18),_transparent_55%)] opacity-60 blur-2xl" />
+            <div className="w-full max-w-md animate-fade-in-up rounded-2xl border border-neutral-700/70 bg-neutral-900/80 p-8 backdrop-blur-2xl glow-ring">
+                <h1 className="mb-2 text-3xl font-semibold text-accentPrimary">Create your account</h1>
+                <p className="mb-6 text-neutral-400">Sign up to get started</p>
                 <form onSubmit={onSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm mb-2">Name</label>
-                        <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="Jane Doe" className="bg-neutral-800 border-neutral-600 text-white" />
+                    <div className="space-y-2">
+                        <label className="block text-sm uppercase tracking-wide text-neutral-400">Name</label>
+                        <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="Jane Doe" className="border-neutral-700/70 bg-neutral-900/60 text-white" />
                     </div>
-                    <div>
-                        <label className="block text-sm mb-2">Email</label>
-                        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="bg-neutral-800 border-neutral-600 text-white" />
+                    <div className="space-y-2">
+                        <label className="block text-sm uppercase tracking-wide text-neutral-400">Email</label>
+                        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="border-neutral-700/70 bg-neutral-900/60 text-white" />
                     </div>
-                    <div>
-                        <label className="block text-sm mb-2">Password</label>
-                        <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="bg-neutral-800 border-neutral-600 text-white" />
+                    <div className="space-y-2">
+                        <label className="block text-sm uppercase tracking-wide text-neutral-400">Password</label>
+                        <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="border-neutral-700/70 bg-neutral-900/60 text-white" />
                     </div>
                     {error && (
-                        <div className="text-sm p-3 rounded border bg-red-900/30 border-red-600 text-red-300">{error}</div>
+                        <div className="rounded border border-red-600/60 bg-red-600/10 p-3 text-sm text-red-300 animate-fade-in-up">{error}</div>
                     )}
                     <Button type="submit" disabled={loading} className="w-full bg-accentPrimary hover:bg-accentPrimary/90 text-accentPrimary-foreground">
                         {loading ? 'Creating account…' : 'Sign Up'}
                     </Button>
                 </form>
-                <p className="text-sm text-neutral-400 mt-4">
+                <p className="mt-6 text-sm text-neutral-400">
                     Already have an account?{' '}
-                    <a href="/login" className="text-accentPrimary hover:underline">Sign in</a>
+                    <a href="/login" className="text-accentPrimary underline-offset-4 hover:underline">Sign in</a>
                 </p>
             </div>
         </div>

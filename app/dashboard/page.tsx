@@ -411,7 +411,7 @@ export default function MCADashboard() {
       const commentsError = commentsErrorByDraft[draft.id]
       const isCommentsLoading = commentsLoadingId === draft.id
       return (
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 animate-fade-in-up">
           <div className="flex items-center gap-2 text-sm text-neutral-400">
             <button onClick={() => setSelectedDraft(null)} className="hover:text-accentPrimary transition-colors">
               Dashboard
@@ -420,8 +420,8 @@ export default function MCADashboard() {
             <span className="text-accentPrimary">{draft.title || 'Draft Details'}</span>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="bg-neutral-900 border-neutral-800 lg:col-span-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <Card className="glow-ring hover-lift bg-neutral-900/80 border-neutral-800/70 backdrop-blur-xl lg:col-span-2 animate-fade-in-up">
               <CardHeader>
                 <CardTitle className="text-accentPrimary">Draft Content</CardTitle>
                 <CardDescription>Full document text</CardDescription>
@@ -456,7 +456,7 @@ export default function MCADashboard() {
               </CardContent>
             </Card>
 
-            <Card className="bg-neutral-900 border-neutral-800">
+            <Card className="glow-ring hover-lift bg-neutral-900/80 border-neutral-800/70 backdrop-blur-xl animate-fade-in-up-delayed">
               <CardHeader>
                 <CardTitle className="text-accentPrimary">Executive Summary</CardTitle>
                 <CardDescription>AI-generated draft summary</CardDescription>
@@ -487,21 +487,25 @@ export default function MCADashboard() {
           </div>
 
           <div className="mt-6 space-y-4">
-            <Card className="bg-neutral-900 border-neutral-800">
+            <Card className="glow-ring hover-lift bg-neutral-900/80 border-neutral-800/70 backdrop-blur-xl animate-fade-in-up">
               <CardHeader>
                 <CardTitle className="text-accentPrimary">Analysis Actions</CardTitle>
                 <CardDescription>Generate a sentiment insights report for this draft</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-4">
-                  <button className="px-4 py-2 bg-neutral-800 text-neutral-100 rounded hover:bg-neutral-700 transition-colors">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-neutral-700/60 bg-neutral-900/60 text-neutral-100 hover:border-accentPrimary/60 hover:bg-neutral-900/80"
+                  >
                     Generate Report
-                  </button>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-neutral-900 border-neutral-800">
+            <Card className="glow-ring hover-lift bg-neutral-900/80 border-neutral-800/70 backdrop-blur-xl animate-fade-in-up-delayed">
               <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <CardTitle className="text-accentPrimary">Stakeholder Comments</CardTitle>
@@ -541,7 +545,10 @@ export default function MCADashboard() {
                 ) : (
                   <div className="space-y-4">
                     {draftComments.map((comment) => (
-                      <div key={comment.id} className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
+                      <div
+                        key={comment.id}
+                        className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-4 space-y-3 transition-all duration-300 ease-[var(--ease-out-expo)] hover:border-accentPrimary/60 hover:shadow-[0_18px_40px_-28px_rgba(16,185,129,0.45)] animate-fade-in-up"
+                      >
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <Badge className={getSentimentBadgeClasses(comment.sentiment_analysis)}>
                             {comment.sentiment_analysis ? comment.sentiment_analysis : 'Sentiment unknown'}
@@ -572,13 +579,13 @@ export default function MCADashboard() {
     }
 
     return (
-      <div className="p-6">
+  <div className="p-6 animate-fade-in-up">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-accentPrimary mb-2">Available Drafts</h2>
           <p className="text-neutral-400">Select a draft to view its sentiment analysis dashboard</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {drafts.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <div className="text-neutral-500 text-lg mb-2">No drafts available</div>
@@ -588,7 +595,7 @@ export default function MCADashboard() {
             drafts.map((draft) => (
               <Card
                 key={draft.id}
-                className="bg-neutral-900 border-neutral-800 hover:border-accentPrimary/60 transition-colors cursor-pointer"
+                className="glow-ring hover-lift cursor-pointer border-neutral-800/60 bg-neutral-900/80 transition-colors backdrop-blur-xl animate-fade-in-up"
                 onClick={() => {
                   setSelectedDraft(draft.id)
                   if (!draft.draft && !draft.summary) {
@@ -640,14 +647,14 @@ export default function MCADashboard() {
   }
 
   const renderUploadPage = () => (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 mx-auto max-w-4xl animate-fade-in-up">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-accentPrimary mb-2">Upload Comments</h2>
         <p className="text-neutral-400">Submit individual comments or bulk upload via CSV</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-neutral-900 border-neutral-800">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card className="glow-ring hover-lift bg-neutral-900/80 border-neutral-800/70 backdrop-blur-xl animate-fade-in-up">
           <CardHeader>
             <CardTitle className="text-accentPrimary">Single Comment</CardTitle>
             <CardDescription>Submit an individual comment for analysis</CardDescription>
@@ -721,7 +728,7 @@ export default function MCADashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-neutral-900 border-neutral-800">
+  <Card className="glow-ring hover-lift bg-neutral-900/80 border-neutral-800/70 backdrop-blur-xl animate-fade-in-up-delayed">
           <CardHeader>
             <CardTitle className="text-accentPrimary">Bulk Upload</CardTitle>
             <CardDescription>Upload multiple comments via CSV file</CardDescription>
@@ -814,7 +821,10 @@ export default function MCADashboard() {
                 <div className="text-neutral-400 text-xs uppercase tracking-wide">Preview ({Math.min(3, bulkCommentResult.length)} of {bulkCommentResult.length})</div>
                 <div className="space-y-3">
                   {bulkCommentResult.slice(0, 3).map((comment) => (
-                    <div key={comment.id} className="rounded border border-neutral-700 bg-neutral-900/80 p-3">
+                    <div
+                      key={comment.id}
+                      className="rounded border border-neutral-700 bg-neutral-900/80 p-3 transition-all duration-300 ease-[var(--ease-out-expo)] hover:border-accentPrimary/60 hover:shadow-[0_14px_30px_-22px_rgba(16,185,129,0.35)] animate-fade-in-up"
+                    >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <Badge className={`${getSentimentBadgeClasses(comment.sentiment_analysis)} text-xs`}>
                           {comment.sentiment_analysis || 'N/A'}
@@ -893,12 +903,12 @@ export default function MCADashboard() {
       }
     }
     return (
-      <div className="p-6 max-w-3xl mx-auto">
+  <div className="p-6 mx-auto max-w-3xl animate-fade-in-up">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-accentPrimary mb-2">Add Draft</h2>
           <p className="text-neutral-400">Create a new draft entry for analysis</p>
         </div>
-        <Card className="bg-neutral-900 border-neutral-800">
+  <Card className="glow-ring hover-lift bg-neutral-900/80 border-neutral-800/70 backdrop-blur-xl animate-fade-in-up">
           <CardHeader>
             <CardTitle className="text-accentPrimary">Upload Draft (PDF)</CardTitle>
             <CardDescription>Only a PDF file is required</CardDescription>
@@ -957,13 +967,13 @@ export default function MCADashboard() {
     )
   }
     return (
-      <div className="p-6 max-w-2xl mx-auto">
+  <div className="p-6 mx-auto max-w-2xl animate-fade-in-up">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-accentPrimary mb-2">Settings</h2>
           <p className="text-neutral-400">Update your account details (frontend only)</p>
         </div>
 
-        <Card className="bg-neutral-900 border-neutral-800">
+  <Card className="glow-ring hover-lift bg-neutral-900/80 border-neutral-800/70 backdrop-blur-xl animate-fade-in-up">
           <CardHeader>
             <CardTitle className="text-accentPrimary">Account</CardTitle>
             <CardDescription>Change username and password</CardDescription>
@@ -1028,7 +1038,7 @@ export default function MCADashboard() {
   return (
     <div className="flex h-screen">
       <div
-        className={`${sidebarCollapsed ? "w-16" : "w-70"} bg-neutral-900 border-r border-neutral-700 transition-all duration-300 fixed md:relative z-50 md:z-auto h-full md:h-auto ${!sidebarCollapsed ? "md:block" : ""}`}
+        className={`${sidebarCollapsed ? "w-16" : "w-70"} fixed z-50 h-full border-r border-neutral-700/60 bg-neutral-900/70 backdrop-blur-2xl transition-all duration-300 md:relative md:z-auto md:h-auto ${!sidebarCollapsed ? "md:block" : ""}`}
       >
         <div className="p-4">
           <div className="flex items-center justify-between mb-8">
@@ -1112,8 +1122,8 @@ export default function MCADashboard() {
         />
       )}
 
-      <div className={`flex-1 flex flex-col ${!sidebarCollapsed ? "md:ml-0" : ""}`}>
-        <div className="h-16 bg-neutral-800 border-b border-neutral-700 flex items-center justify-between px-6">
+      <div className={`flex flex-1 flex-col ${!sidebarCollapsed ? "md:ml-0" : ""}`}>
+        <div className="flex h-16 items-center justify-between border-b border-neutral-700/60 bg-neutral-900/70 px-6 backdrop-blur-xl">
           <div className="flex items-center gap-4">
             <div className="text-sm text-neutral-400">
               MCA eCONSULTATION /{" "}
