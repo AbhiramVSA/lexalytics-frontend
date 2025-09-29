@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lexalytics logo">
+  <defs>
+    <linearGradient id="lexalyticsGradient" x1="20%" y1="15%" x2="80%" y2="85%">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="50%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#34d399" />
+    </linearGradient>
+    <linearGradient id="lexalyticsHighlight" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="60" fill="url(#lexalyticsGradient)" />
+  <rect width="256" height="256" rx="60" fill="url(#lexalyticsHighlight)" />
+  <path d="M88 72c0-8.837 7.163-16 16-16h48v104h56c8.837 0 16 7.163 16 16v40H88z" fill="#ecfeff" fill-opacity="0.94" />
+  <path d="M88 196h128v20H88z" fill="#ecfeff" fill-opacity="0.38" />
+  <circle cx="74" cy="78" r="26" fill="#ecfeff" fill-opacity="0.18" />
+</svg>

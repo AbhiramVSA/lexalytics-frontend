@@ -284,3 +284,87 @@ export async function deleteDraft(draftId: string): Promise<void> {
         throw new Error(`Failed to delete draft: ${detail}`)
     }
 }
+
+const extractFilename = (contentDisposition: string | null, fallback: string): string => {
+    if (!contentDisposition) {
+        return fallback
+    }
+
+    const filenameMatch = contentDisposition.match(/filename\*?=([^;]+)/i)
+    if (!filenameMatch) {
+        return fallback
+    }
+
+    const value = filenameMatch[1].trim()
+
+    if (value.startsWith("UTF-8''")) {
+        try {
+            return decodeURIComponent(value.slice(7)) || fallback
+        } catch (error) {
+            console.warn('Failed to decode filename from content-disposition:', error)
+            return fallback
+        }
+    }
+
+    return value.replace(/^["']|["']$/g, '') || fallback
+}
+
+export async function generateDraftReport(draftId: string): Promise<{ blob: Blob; filename: string }> {
+    if (!draftId) {
+        throw new Error('Draft ID is required to generate a report.')
+    }
+
+    const authHeader = getAuthHeader()
+    console.log('Generating report for draft:', draftId)
+    console.log('Auth header present:', Boolean(authHeader.Authorization))
+
+    if (!authHeader.Authorization) {
+        throw new Error('Not authenticated: Bearer token is required. Please log in before generating a report.')
+    }
+
+    const headers: Record<string, string> = {
+        accept: 'application/pdf',
+        ...authHeader,
+    }
+
+    const url = apiUrl(`/api/v1/draft/${draftId}/report`)
+    console.log('Requesting draft report from:', url)
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers,
+    })
+
+    console.log('Draft report response status:', res.status, res.statusText)
+
+    if (!res.ok) {
+        let detail: string | undefined
+        try {
+            const text = await res.text()
+            if (text) {
+                detail = extractDetail(JSON.parse(text))
+            }
+        } catch (error) {
+            console.warn('Failed to parse draft report error response:', error)
+        }
+
+        const message = detail || `HTTP ${res.status}: ${res.statusText}`
+
+        if (res.status === 401) {
+            throw new Error(`Authentication failed (401): ${message}. Check if your token is still valid.`)
+        }
+        if (res.status === 403) {
+            throw new Error(`Access forbidden (403): ${message}.`)
+        }
+        if (res.status === 404) {
+            throw new Error(`Report not found (404): Unable to generate report for draft ${draftId}.`)
+        }
+
+        throw new Error(`Failed to generate draft report: ${message}`)
+    }
+
+    const blob = await res.blob()
+    const filename = extractFilename(res.headers.get('content-disposition'), `draft_${draftId}_report.pdf`)
+
+    return { blob, filename }
+}

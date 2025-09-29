@@ -9,6 +9,15 @@ export const metadata: Metadata = {
   title: "Lexalytics",
   description: "Operational intelligence console for sentiment and consultation analytics",
   generator: "v0.app",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/placeholder-logo.png", type: "image/png", sizes: "32x32" },
+    ],
+    shortcut: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+  },
 }
 
 export default function RootLayout({

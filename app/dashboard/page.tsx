@@ -1,11 +1,11 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ChevronRight, BarChart3, Upload, FileText, Settings, RefreshCw, LogOut, Trash2 } from "lucide-react"
+import { ChevronRight, BarChart3, Upload, FileText, Settings, RefreshCw, LogOut, Trash2, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { uploadDraft, getDraft, listDrafts, deleteDraft } from "@/lib/drafts"
+import { uploadDraft, getDraft, listDrafts, deleteDraft, generateDraftReport } from "@/lib/drafts"
 import { createDraftComment, listDraftComments, uploadDraftCommentsCsv, type CreateDraftCommentRequest, type CreateDraftCommentResponse, type DraftComment, type ListDraftCommentsResponse } from "@/lib/comments"
 import { getToken, clearToken as clearStoredToken } from "@/lib/token"
 
@@ -46,6 +46,10 @@ export default function MCADashboard() {
   const [commentsByDraft, setCommentsByDraft] = useState<Record<string, DraftComment[]>>({})
   const [commentsLoadingId, setCommentsLoadingId] = useState<string | null>(null)
   const [commentsErrorByDraft, setCommentsErrorByDraft] = useState<Record<string, string>>({})
+
+  const [reportLoading, setReportLoading] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
+  const [reportSuccess, setReportSuccess] = useState<string | null>(null)
 
   const bulkFileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -256,6 +260,43 @@ export default function MCADashboard() {
       loadDraftComments(selectedDraft)
     }
   }, [selectedDraft, commentsByDraft, commentsLoadingId, loadDraftComments])
+
+  useEffect(() => {
+    setReportError(null)
+    setReportSuccess(null)
+    setReportLoading(false)
+  }, [selectedDraft])
+
+  const handleGenerateReport = async (draftId: string) => {
+    if (!draftId) {
+      setReportError('No draft selected for report generation.')
+      return
+    }
+
+    setReportError(null)
+    setReportSuccess(null)
+    setReportLoading(true)
+
+    try {
+      const { blob, filename } = await generateDraftReport(draftId)
+
+      const downloadUrl = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = downloadUrl
+      anchor.download = filename
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000)
+
+      setReportSuccess(`Report download started: ${filename}`)
+    } catch (error) {
+      console.error('Failed to generate draft report:', error)
+      setReportError(error instanceof Error ? error.message : 'Failed to generate draft report.')
+    } finally {
+      setReportLoading(false)
+    }
+  }
 
   const handleCommentSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -492,16 +533,38 @@ export default function MCADashboard() {
                 <CardTitle className="text-accentPrimary">Analysis Actions</CardTitle>
                 <CardDescription>Generate a sentiment insights report for this draft</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="flex flex-wrap gap-4">
                   <Button
                     type="button"
                     variant="outline"
+                    onClick={() => handleGenerateReport(draft.id)}
+                    disabled={reportLoading}
                     className="border-neutral-700/60 bg-neutral-900/60 text-neutral-100 hover:border-accentPrimary/60 hover:bg-neutral-900/80"
                   >
-                    Generate Report
+                    {reportLoading ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        Generating…
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4" />
+                        Generate Report
+                      </>
+                    )}
                   </Button>
                 </div>
+                {reportError && (
+                  <div className="rounded border border-red-600/50 bg-red-600/10 p-3 text-sm text-red-300">
+                    {reportError}
+                  </div>
+                )}
+                {reportSuccess && (
+                  <div className="rounded border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+                    {reportSuccess}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
