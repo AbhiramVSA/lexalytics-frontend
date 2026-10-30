@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/favicon.svg" alt="Lexalytics L mark" width="64">
+   alt="Lexalytics L mark" width="200">
 </p>
 
 <h1 align="center">Lexalytics Frontend</h1>
