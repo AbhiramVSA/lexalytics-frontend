@@ -79,3 +79,7 @@ The middleware passes matched requests through. It does not enforce access to pa
 The frontend sends the token in an `Authorization` header. The API must implement the routes above and allow requests from the frontend origin. This repository does not include or verify that API.
 
 The root `LICENSE` file is absent. No license terms are provided in this checkout.
+
+## Security
+
+If you discover a security issue, please do not open a public issue. Instead, contact the maintainers directly to coordinate a fix.
