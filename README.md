@@ -1,175 +1,81 @@
-# Lexalytics Frontend
+<p align="center">
+  <img src="public/favicon.svg" alt="Lexalytics L mark" width="64">
+</p>
 
-A Next.js 14 frontend for a sentiment analysis and public consultation dashboard (MCA eConsultation). It provides authentication, a protected dashboard, comment uploads (single + bulk), draft management (including PDF uploads), and data visualizations.
+<h1 align="center">Lexalytics Frontend</h1>
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](https://nextjs.org/) [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3-06B6D4?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/) [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+<p align="center">A Next.js interface for a public-consultation dashboard and its external API.</p>
 
-## Features
+<p align="center">
+  <a href="#overview">Overview</a> ·
+  <a href="#run-locally">Run locally</a> ·
+  <a href="#frontend-api-contract">API contract</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="#limits">Limits</a>
+</p>
 
-- Authentication: Login, Signup, and Logout with route protection via middleware
-- Dashboard: Draft list with per‑draft analytics (placeholders for charts/heatmaps)
-- Uploads:
-  - Single comment entry
-  - Bulk CSV upload with draft selection
-  - Add Draft via PDF upload (client-side flow; wire to backend endpoint)
-- Profile and Settings: Basic UI scaffolding
-- Modern UI: Tailwind CSS, shadcn/ui components, Lucide icons
+## Overview
 
-## Tech Stack
+This repository contains a Next.js 14.2.16 App Router frontend. The backend API is external and is not part of this repository.
 
-- Framework: Next.js 14 (App Router)
-- Language: TypeScript + React 18
-- Styling: Tailwind CSS + shadcn/ui (Radix UI)
-- Charts/UX: Recharts, vaul, cmdk, etc.
+- `/` redirects to `/login`.
+- The dashboard checks for a token in the browser before it loads dashboard data.
+- The `operations`, `systems`, `intelligence`, and `agent-network` pages contain sample records.
+- The `my-comments` page is a placeholder.
+- The dashboard client sends draft, comment, report, and sentiment requests to configured API services.
 
-## Monorepo/Folder Structure
+## Run locally
 
-\`\`\`
-app/
-  login/             # Login page
-  signup/            # Signup page
-  ...                # Dashboard + sections (upload, settings, etc.)
-components/          # UI primitives (shadcn/ui)
-lib/                 # Client helpers (auth, API)
-public/              # Static assets
-styles/              # Global styles
-types/               # Shared types
-\`\`\`
+Requirements: Node.js and pnpm.
 
-## Getting Started
-
-1. Requirements
-   - Node.js 18+
-   - pnpm (recommended) or npm/yarn
-
-2. Install dependencies
-
-\`\`\`bash
-pnpm install
-\`\`\`
-
-3. Configure environment
-
-Create `.env.local` at the project root:
-
-\`\`\`bash
-# Base URL for your backend API (auth, drafts, comments, etc.)
-NEXT_PUBLIC_API_BASE_URL=https://api.lexalytics.me
-
-# Optional: separate base for sentiment data if used by lib/sentiment-api.ts
-# If unset, it defaults to http://localhost:8000 in that file
-# NEXT_PUBLIC_API_URL=https://api.lexalytics.me
-
-# (Optional) Demo auth flags for local-only testing without a backend
-# NEXT_PUBLIC_ENABLE_DEMO_AUTH=true
-# NEXT_PUBLIC_DEMO_EMAIL=demo@example.com
-# NEXT_PUBLIC_DEMO_PASSWORD=demo1234
-\`\`\`
-
-4. Run the dev server
-
-\`\`\`bash
+```bash
+pnpm install --frozen-lockfile
 pnpm dev
-\`\`\`
+```
 
-Open http://localhost:3000. You’ll be redirected to `/login` until authenticated.
+Open `http://localhost:3000`. The home page redirects to `/login`.
 
-5. Production build
+To create a production build, run:
 
-\`\`\`bash
+```bash
 pnpm build
 pnpm start
-\`\`\`
+```
 
-## Authentication
+## Frontend API contract
 
-- Pages: `/login`, `/signup`
-- Middleware: `middleware.ts` enforces `authToken` cookie for protected routes
-- Client helper: `lib/auth-client.ts`
-  - `login(email, password)` → POST `${NEXT_PUBLIC_API_BASE_URL}/api/v1/login/login`
-    - Expects `{ access_token, token_type }` and sets `authToken` client cookie
-  - `signup(name, email, password)` → POST `${NEXT_PUBLIC_API_BASE_URL}/api/v1/login/register`
-    - Expects `{ id, username, email }`
-  - `logout()` clears the `authToken` cookie
+These are the request paths that the frontend helpers use. The backend routes are not defined in this repository.
 
-Security recommendation: In production, prefer setting an HttpOnly `authToken` cookie from the backend after login to protect against XSS. The current client-set cookie is suitable for prototyping.
+| Method | Path | Use |
+| --- | --- | --- |
+| `POST` | `/api/v1/login/login` | Sign in |
+| `POST` | `/api/v1/login/register` | Register an account |
+| `POST` | `/api/v1/draft/` | Upload a draft PDF |
+| `GET` | `/api/v1/draft/?limit=20` | List drafts |
+| `GET` | `/api/v1/draft/drafts/{draftId}` | Read a draft |
+| `DELETE` | `/api/v1/draft/{draftId}` | Delete a draft |
+| `POST` | `/api/v1/draft/{draftId}/report` | Request a PDF report |
+| `POST` | `/api/v1/comment/draft/{draftId}` | Add a comment |
+| `GET` | `/api/v1/comment/draft/{draftId}?limit=20` | List comments |
+| `POST` | `/api/v1/comment/draft/{draftId}/csv` | Upload comments from a CSV file |
 
-## Core Pages & Flows
+The sentiment client uses `GET /api/sentiment/analysis` and `GET /api/sentiment/agent/{agentId}`. It uses a separate base URL.
 
-- Dashboard (`/`):
-  - Draft list: click to view analytics for a draft (placeholder cards)
-  - Top toolbar includes last update time and logout button
-- Upload (`UPLOAD COMMENT`):
-  - Single comment form
-  - Bulk upload card: choose a draft, select/upload CSV
-- Add Draft (`ADD DRAFT`):
-  - Upload a PDF and provide title/status; adds the draft to the list
-- Profile/Settings: Non-persistent UI scaffolding for future expansion
+## Configuration
 
-## Backend API (assumed implemented)
+Set these values in `.env.local` when the service URLs differ from the defaults:
 
-Base URL: `${NEXT_PUBLIC_API_BASE_URL}` (default `https://api.lexalytics.me`)
+```dotenv
+NEXT_PUBLIC_API_BASE_URL=https://api.lexalytics.me
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
 
-- Auth
-  - POST `/api/v1/login/register` — body `{ username, email, password }` → `{ id, username, email }`
-  - POST `/api/v1/login/login` — body `{ email, password }` → `{ access_token, token_type }`
-- Drafts
-  - POST `/api/v1/drafts/upload` — `multipart/form-data` with fields:
-    - `file`: PDF file
-    - `title`: string
-    - `status`: `Active` | `Closed`
-    - Returns: `{ id, title, uploadDate, status }`
-  - GET `/api/v1/drafts` — list drafts
-  - GET `/api/v1/drafts/:id` — draft details
-- Comments
-  - POST `/api/v1/comments` — add single comment `{ draftId, commentText, stakeholderId? }`
-  - POST `/api/v1/comments/bulk` — `multipart/form-data` CSV with headers `draft_id,comment_text,stakeholder_id`
-- Sentiment (if applicable)
-  - `lib/sentiment-api.ts` reads from `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}`
-  - Example: GET `${NEXT_PUBLIC_API_URL}/api/sentiment/analysis`
+`NEXT_PUBLIC_API_BASE_URL` is the default base URL for login, drafts, and comments. `NEXT_PUBLIC_API_URL` is the default base URL for sentiment requests. Next.js includes `NEXT_PUBLIC_` values in browser code. Do not put secrets in these values.
 
-Note: Endpoint paths are provided for integration guidance and can be adapted to your backend.
+## Limits
 
-## Environment Variables
+The middleware passes matched requests through. It does not enforce access to pages. The dashboard checks for a token in the browser, and the token helper stores the token in `localStorage`. This client-side check does not protect server routes.
 
-- `NEXT_PUBLIC_API_BASE_URL`: Backend base for auth/drafts/comments (default `https://api.lexalytics.me`)
-- `NEXT_PUBLIC_API_URL` (optional): Base for sentiment API (`lib/sentiment-api.ts`)
-- Demo (optional for local dev only):
-  - `NEXT_PUBLIC_ENABLE_DEMO_AUTH`, `NEXT_PUBLIC_DEMO_EMAIL`, `NEXT_PUBLIC_DEMO_PASSWORD`
+The frontend sends the token in an `Authorization` header. The API must implement the routes above and allow requests from the frontend origin. This repository does not include or verify that API.
 
-## Deployment
-
-- Recommended: Vercel or any Node.js host
-- Set the same env vars in your hosting provider
-- Ensure your backend supports CORS for the frontend origin (if hosting separately)
-
-## Development Notes
-
-- Code style: TypeScript strict, Prettier/Tailwind recommended
-- UI: shadcn/ui components live under `components/ui`
-- Routing: App Router under `app/`
-- Middleware: `middleware.ts` protects routes by cookie presence
-
-## Roadmap
-
-- Wire Add Draft (PDF) and Bulk Upload to real endpoints with `FormData`
-- Replace placeholder analytics with actual charts and data
-- Improve auth to use HttpOnly cookies + refresh tokens
-- Centralize API config (`NEXT_PUBLIC_API_BASE_URL` and `NEXT_PUBLIC_API_URL`)
-
-## Contributing
-
-Contributions are welcome! Please open an issue to discuss changes or submit a PR.
-
-Suggested steps:
-- Fork the repo and create a feature branch
-- Add tests (if applicable) and ensure `pnpm build` passes
-- Open a PR with a clear description and screenshots (if UI changes)
-
-## Security
-
-If you discover a security issue, please do not open a public issue. Instead, contact the maintainers directly to coordinate a fix.
-
-## License
-
-Choose an open-source license (e.g., MIT, Apache-2.0) and add a `LICENSE` file in the repo root. Update this section accordingly.
+The root `LICENSE` file is absent. No license terms are provided in this checkout.
